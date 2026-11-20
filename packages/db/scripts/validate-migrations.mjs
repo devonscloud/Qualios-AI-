@@ -83,6 +83,38 @@ const EXPECTED = {
       "ALTER TYPE approval_action_type ADD VALUE IF NOT EXISTS 'SOP_PUBLISH'",
     ],
   },
+  // 0011 removes the cannabis leaks from the core (B-110): pack enablement
+  // and pack extension tables (4 policies). Its UP drops the old cannabis
+  // enum types after converting the columns that used them — the documented
+  // exception, same as 0008: no data is lost, values are preserved in pack
+  // tables or converted to generic values first.
+  "0011_b110_core_neutrality.sql": {
+    creates: [
+      "organization_packs",
+      "product_taxonomy",
+      "listing_types",
+      "product_attributes",
+      "lot_attributes",
+      "lot_dispositions",
+    ],
+    policies: 4,
+    allowDropTypeInUp: true,
+  },
+  // 0012 adds the integrated domain model: traceability links, the
+  // double-entry ledger, inventory valuations, and the generic tax engine
+  // (6 policies; tax_rules is shared reference configuration, no RLS).
+  "0012_domain_model.sql": {
+    creates: [
+      "traceability_links",
+      "gl_accounts",
+      "journal_entries",
+      "journal_lines",
+      "inventory_valuations",
+      "tax_rules",
+      "tax_calculations",
+    ],
+    policies: 6,
+  },
 };
 
 let failures = 0;

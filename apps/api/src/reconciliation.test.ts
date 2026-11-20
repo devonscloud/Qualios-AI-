@@ -11,7 +11,7 @@ import { createApp } from "./app.js";
 import { setStorageForTests } from "./lib/storage.js";
 
 /**
- * Seed-to-sale import + reconciliation engine integration tests (Days 14–18).
+ * External record import + reconciliation engine integration tests (Days 14–18).
  *
  * Needs a real PostgreSQL (DATABASE_URL) — CI provides one. Without
  * DATABASE_URL the suite is skipped rather than failing:
@@ -31,6 +31,7 @@ const hasDb = Boolean(DATABASE_URL);
 
 const ORG_A = randomUUID();
 const ORG_B = randomUUID();
+const ORG_C = randomUUID();
 const SITE_A = randomUUID();
 const OPS = randomUUID();
 const QA = randomUUID();
@@ -66,6 +67,7 @@ interface ImportRunSummary {
   rows_accepted: number;
   rows_rejected: number;
   error: string | null;
+  mapping: Record<string, string>;
 }
 
 interface DiscrepancySummary {
@@ -82,7 +84,7 @@ interface DiscrepancySummary {
 interface LineSummary {
   lot_number: string | null;
   match_status: string;
-  seed_to_sale_qty_mg: number | null;
+  external_qty_mg: number | null;
   paper_record_qty_mg: number | null;
   allocated_qty_units: number | null;
   produced_qty_units: number | null;
@@ -90,7 +92,7 @@ interface LineSummary {
   variance_units: number | null;
 }
 
-describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)", () => {
+describe.skipIf(!hasDb)("external record import + reconciliation engine (DB-backed)", () => {
   let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
   let baseUrl: string;
   let pool: Pool;
@@ -99,12 +101,12 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   const lots = new Map<string, string>(); // lot_number -> lot id
   const products = new Map<string, string>(); // key -> product id
 
-  async function createProduct(key: string, name: string, category: string): Promise<string> {
+  async function createProduct(key: string, name: string, categoryKey: string): Promise<string> {
     const id = randomUUID();
     await pool.query(
-      `INSERT INTO products (id, organization_id, name, brand, category, format, status)
-       VALUES ($1, $2, $3, 'Synthetic', $4, 'test', 'ACTIVE')`,
-      [id, ORG_A, name, category],
+      `INSERT INTO products (id, organization_id, name, brand, category_key, taxonomy_pack_id, format, status)
+       VALUES ($1, $2, $3, 'Synthetic', $4, 'cannabis-ca', 'test', 'ACTIVE')`,
+      [id, ORG_A, name, categoryKey],
     );
     products.set(key, id);
     return id;
@@ -238,6 +240,18 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
     await pool.query(
       `INSERT INTO organizations (id, name, country, currency, status) VALUES ($1, 'Test Other Org', 'CA', 'CAD', 'ACTIVE')`,
       [ORG_B],
+    );
+    await pool.query(
+      `INSERT INTO organizations (id, name, country, currency, status) VALUES ($1, 'Test Third Org', 'CA', 'CAD', 'ACTIVE')`,
+      [ORG_C],
+    );
+    // ORG_A and ORG_C enable the cannabis pack, so the pack surfaces are
+    // reachable for them. ORG_B enables no pack: it is the pack-gate
+    // control (403 PACK_NOT_ENABLED on every pack surface).
+    await pool.query(
+      `INSERT INTO organization_packs (organization_id, pack_id, status) VALUES
+         ($1, 'cannabis-ca', 'ENABLED'), ($2, 'cannabis-ca', 'ENABLED')`,
+      [ORG_A, ORG_C],
     );
     await pool.query(
       `INSERT INTO sites (id, organization_id, name, timezone, status) VALUES ($1, $2, 'Test Site', 'America/Regina', 'ACTIVE')`,
@@ -387,10 +401,10 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
     }
   });
 
-  it("imports a seed-to-sale CSV snapshot and records every row", async () => {
+  it("imports an external-system CSV snapshot and records every row", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg\n260824,1338000\n260803,348000\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
     );
     expect(status).toBe(201);
     expect(run.status).toBe("COMPLETED");
@@ -435,7 +449,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
       "export.xlsx",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       {
-        import_kind: "SEED_TO_SALE",
+        import_kind: "EXTERNAL_SNAPSHOT",
         import_mode: "SNAPSHOT",
       },
     );
@@ -447,7 +461,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   it("never silently drops a bad row: it is recorded REJECTED with a reason", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg\n260824,1000\n260803,not-a-number\n260824,500\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
     );
     expect(status).toBe(201);
     expect(run.status).toBe("COMPLETED_WITH_ERRORS");
@@ -481,7 +495,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
       "bad.csv",
       "text/csv",
       {
-        import_kind: "SEED_TO_SALE",
+        import_kind: "EXTERNAL_SNAPSHOT",
         import_mode: "SNAPSHOT",
       },
     );
@@ -497,7 +511,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
       Buffer.from("%PDF-1.4\n"),
       "doc.pdf",
       "application/pdf",
-      { import_kind: "SEED_TO_SALE", import_mode: "SNAPSHOT" },
+      { import_kind: "EXTERNAL_SNAPSHOT", import_mode: "SNAPSHOT" },
     );
     expect(status).toBe(400);
     const typed = body as { error: { code: string } };
@@ -507,7 +521,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   it("LEDGER mode writes movements; positions are derived from the ledger", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg,movement_type,location\n261005,250000,RECEIVE,Vault (bulk)\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
       "LEDGER",
     );
     expect(status).toBe(201);
@@ -523,7 +537,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   it("Case 1 (Q-051): Toad Venom phantom 1.338 kg is PHANTOM_STOCK HIGH", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg\n260824,1338000\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
     );
     expect(status).toBe(201);
     const result = await runReconciliation(run.id, "SITE", "ALL");
@@ -539,7 +553,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
     expect(phantom[0].evidence.external_qty_mg).toBe(1338000);
     const line = result.lines.find((l) => l.lot_number === "260824");
     expect(line?.match_status).toBe("VARIANCE");
-    expect(line?.seed_to_sale_qty_mg).toBe(1338000);
+    expect(line?.external_qty_mg).toBe(1338000);
     expect(line?.paper_record_qty_mg).toBe(0);
     expect(line?.variance_mg).toBe(1338000);
   });
@@ -547,7 +561,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   it("Case 2 (Q-051): Sangria phantom 0.348 kg is PHANTOM_STOCK MEDIUM", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg\n260803,348000\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
     );
     expect(status).toBe(201);
     const result = await runReconciliation(run.id, "SITE", "ALL");
@@ -620,7 +634,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   it("Lot mismatch (Q-051): lot 260930 does not exist and is flagged, not dropped", async () => {
     const { status, run } = await importCsv(
       "lot_number,quantity_mg\n261005,1000000\n260930,500000\n",
-      "SEED_TO_SALE",
+      "EXTERNAL_SNAPSHOT",
     );
     expect(status).toBe(201);
     expect(run.status).toBe("COMPLETED_WITH_ERRORS");
@@ -651,7 +665,10 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   });
 
   it("no auto-resolution: every discrepancy a run creates starts OPEN", async () => {
-    const { run } = await importCsv("lot_number,quantity_mg\n260824,1338000\n", "SEED_TO_SALE");
+    const { run } = await importCsv(
+      "lot_number,quantity_mg\n260824,1338000\n",
+      "EXTERNAL_SNAPSHOT",
+    );
     const result = await runReconciliation(run.id, "SITE", "ALL");
     expect(result.discrepancies.length).toBeGreaterThan(0);
     for (const d of result.discrepancies) {
@@ -668,7 +685,7 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   });
 
   it("discrepancy workflow: propose, segregation of duties on approve, then close", async () => {
-    const { run } = await importCsv("lot_number,quantity_mg\n260803,348000\n", "SEED_TO_SALE");
+    const { run } = await importCsv("lot_number,quantity_mg\n260803,348000\n", "EXTERNAL_SNAPSHOT");
     const result = await runReconciliation(run.id, "SITE", "ALL");
     const discrepancy = result.discrepancies.find(
       (d) => d.lot_number === "260803" && d.discrepancy_type === "PHANTOM_STOCK",
@@ -756,7 +773,10 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   });
 
   it("approve with outcome EXPLAINED ends a discrepancy as explained, not resolved", async () => {
-    const { run } = await importCsv("lot_number,quantity_mg\n260824,1338000\n", "SEED_TO_SALE");
+    const { run } = await importCsv(
+      "lot_number,quantity_mg\n260824,1338000\n",
+      "EXTERNAL_SNAPSHOT",
+    );
     const result = await runReconciliation(run.id, "SITE", "ALL");
     const discrepancy = result.discrepancies.find(
       (d) => d.lot_number === "260824" && d.discrepancy_type === "PHANTOM_STOCK",
@@ -797,7 +817,10 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   });
 
   it("a run cannot be executed twice", async () => {
-    const { run } = await importCsv("lot_number,quantity_mg\n260824,1338000\n", "SEED_TO_SALE");
+    const { run } = await importCsv(
+      "lot_number,quantity_mg\n260824,1338000\n",
+      "EXTERNAL_SNAPSHOT",
+    );
     const result = await runReconciliation(run.id, "SITE", "ALL");
     const again = await fetch(`${baseUrl}/api/reconciliations/${result.reconciliationId}/run`, {
       method: "POST",
@@ -807,26 +830,102 @@ describe.skipIf(!hasDb)("seed-to-sale import + reconciliation engine (DB-backed)
   });
 
   it("does not leak runs, imports, or discrepancies across tenants", async () => {
-    const { run } = await importCsv("lot_number,quantity_mg\n260824,1338000\n", "SEED_TO_SALE");
+    const { run } = await importCsv(
+      "lot_number,quantity_mg\n260824,1338000\n",
+      "EXTERNAL_SNAPSHOT",
+    );
     const result = await runReconciliation(run.id, "SITE", "ALL");
     const discrepancyId = result.discrepancies[0]?.id as string;
 
+    // ORG_C has the pack enabled but no data: cross-tenant reads are 404.
     const otherRun = await fetch(`${baseUrl}/api/reconciliations/${result.reconciliationId}`, {
-      headers: headers(ORG_B, QA),
+      headers: headers(ORG_C, QA),
     });
     expect(otherRun.status).toBe(404);
     const otherImport = await fetch(`${baseUrl}/api/imports/${run.id}`, {
-      headers: headers(ORG_B, QA),
+      headers: headers(ORG_C, QA),
     });
     expect(otherImport.status).toBe(404);
     const otherDiscrepancy = await fetch(`${baseUrl}/api/discrepancies/${discrepancyId}`, {
-      headers: headers(ORG_B, QA),
+      headers: headers(ORG_C, QA),
     });
     expect(otherDiscrepancy.status).toBe(404);
     const otherList = await fetch(`${baseUrl}/api/discrepancies`, {
-      headers: headers(ORG_B, QA),
+      headers: headers(ORG_C, QA),
     });
     const otherListBody = (await otherList.json()) as { discrepancies: unknown[] };
     expect(otherListBody.discrepancies).toHaveLength(0);
+  });
+
+  it("pack gate: a tenant without the cannabis pack gets 403 PACK_NOT_ENABLED", async () => {
+    for (const path of ["/api/imports", "/api/reconciliations", "/api/discrepancies"]) {
+      const res = await fetch(`${baseUrl}${path}`, { headers: headers(ORG_B, QA) });
+      expect(res.status).toBe(403);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("PACK_NOT_ENABLED");
+    }
+    const excise = await fetch(`${baseUrl}/api/excise/calculate`, {
+      method: "POST",
+      headers: { ...headers(ORG_B, QA), "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(excise.status).toBe(403);
+  });
+
+  it("rejects SEED_TO_SALE as an import kind: the core kind is EXTERNAL_SNAPSHOT", async () => {
+    const { status, body } = await importFile(
+      Buffer.from("lot_number,quantity_mg\n260824,1000\n", "utf8"),
+      "import.csv",
+      "text/csv",
+      { import_kind: "SEED_TO_SALE", import_mode: "SNAPSHOT" },
+    );
+    expect(status).toBe(400);
+    const typed = body as { error: { code: string } };
+    expect(typed.error.code).toBe("INVALID_FIELD");
+  });
+
+  it("records the pack source system on the run", async () => {
+    const form = importForm(
+      Buffer.from("lot_number,quantity_mg\n261005,250000\n", "utf8"),
+      "import.csv",
+      "text/csv",
+      {
+        import_kind: "EXTERNAL_SNAPSHOT",
+        import_mode: "SNAPSHOT",
+        source_system: "SEED_TO_SALE",
+      },
+    );
+    const res = await fetch(`${baseUrl}/api/imports`, {
+      method: "POST",
+      headers: headers(ORG_A, OPS),
+      body: form,
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      import_run: { external_source: string | null };
+    };
+    expect(body.import_run.external_source).toBe("SEED_TO_SALE");
+    // An unregistered source system is refused.
+    const bad = await importFile(
+      Buffer.from("lot_number,quantity_mg\n261005,250000\n", "utf8"),
+      "import.csv",
+      "text/csv",
+      {
+        import_kind: "EXTERNAL_SNAPSHOT",
+        import_mode: "SNAPSHOT",
+        source_system: "NOT_A_SYSTEM",
+      },
+    );
+    expect(bad.status).toBe(400);
+  });
+
+  it("maps the cannabis pack's Strain header to product_name", async () => {
+    const { status, run } = await importCsv(
+      "Lot No,Strain,Qty (kg)\n260824,Demo Flower,1.338\n",
+      "EXTERNAL_SNAPSHOT",
+    );
+    expect(status).toBe(201);
+    expect(run.rows_accepted).toBe(1);
+    expect(run.mapping).toMatchObject({ Strain: "product_name" });
   });
 });

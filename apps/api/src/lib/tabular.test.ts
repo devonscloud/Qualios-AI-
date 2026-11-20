@@ -89,7 +89,7 @@ describe("decimalToScaledInt", () => {
 });
 
 describe("autoMapFields", () => {
-  it("maps common seed-to-sale export headers", () => {
+  it("maps common external export headers", () => {
     const { mapping, errors } = autoMapFields([
       "Lot No",
       "Qty (kg)",
@@ -117,6 +117,23 @@ describe("autoMapFields", () => {
     const { mapping, errors } = autoMapFields(["lot_number", "internal_notes", "quantity_mg"]);
     expect(errors).toEqual([]);
     expect(mapping).toEqual({ lot_number: "lot_number", quantity_mg: "quantity_mg" });
+  });
+
+  it("maps pack-contributed aliases after the core map, never over them", () => {
+    // The cannabis pack maps "Strain" -> product_name; the core does not
+    // know that header. A pack alias cannot override a core alias.
+    const { mapping, errors } = autoMapFields(["Lot No", "Strain", "Qty (kg)"], {
+      strain: "product_name",
+      lotno: "quantity_mg",
+    });
+    expect(errors).toEqual([]);
+    expect(mapping).toEqual({
+      "Lot No": "lot_number",
+      Strain: "product_name",
+      "Qty (kg)": "quantity_kg",
+    });
+    const coreOnly = autoMapFields(["Strain", "lot_number", "quantity_mg"]);
+    expect(coreOnly.mapping).not.toHaveProperty("Strain");
   });
 });
 

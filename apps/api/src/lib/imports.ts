@@ -1,7 +1,7 @@
 import { decimalToScaledInt } from "./csv.js";
 
 /**
- * Field mapping for seed-to-sale imports (PRD FR-01, backlog Q-020).
+ * Field mapping for external record imports (PRD FR-01, backlog Q-020).
  *
  * A file's columns are mapped to canonical fields. Mapping is explicit and
  * recorded on the import run, so an import is reproducible and auditable:
@@ -11,6 +11,11 @@ import { decimalToScaledInt } from "./csv.js";
  *  - the caller supplies one (JSON: file header -> canonical field), or
  *  - it is auto-derived from the headers by normalized name (lowercased,
  *    non-alphanumerics stripped) against the alias lists below.
+ *
+ * The core alias map is industry-neutral. Industry packs contribute extra
+ * aliases for their own file formats (e.g. the cannabis pack maps the
+ * "Strain" column of a seed-to-sale export to product_name) — the caller
+ * passes those as `extraAliases`; pack aliases never override core ones.
  *
  * Required canonical fields: `lot_number` and at least one quantity field.
  * A file that cannot supply them is rejected at the file level (400) — the
@@ -70,7 +75,6 @@ const HEADER_ALIASES: Record<string, CanonicalField> = {
   productname: "product_name",
   item: "product_name",
   itemname: "product_name",
-  strain: "product_name",
   quantitymg: "quantity_mg",
   qtymg: "quantity_mg",
   quantitymilligrams: "quantity_mg",
@@ -123,10 +127,15 @@ export function normalizeHeader(header: string): string {
 /**
  * Derive a mapping from the file's headers. Returns the mapping plus any
  * problems: two headers mapping to the same canonical field, or a header
- * that maps nowhere (unmapped headers are ignored, not an error — a
- * seed-to-sale export carries columns the wedge does not need).
+ * that maps nowhere (unmapped headers are ignored, not an error — an
+ * external export carries columns the core does not need). Pack aliases
+ * (extraAliases, normalized header -> canonical field) are consulted
+ * after the core map and never override it.
  */
-export function autoMapFields(headers: string[]): {
+export function autoMapFields(
+  headers: string[],
+  extraAliases: Record<string, CanonicalField> = {},
+): {
   mapping: FieldMapping;
   errors: string[];
 } {
@@ -134,7 +143,8 @@ export function autoMapFields(headers: string[]): {
   const errors: string[] = [];
   const claimed = new Map<CanonicalField, string>();
   for (const header of headers) {
-    const canonical = HEADER_ALIASES[normalizeHeader(header)];
+    const normalized = normalizeHeader(header);
+    const canonical = HEADER_ALIASES[normalized] ?? extraAliases[normalized];
     if (!canonical) continue;
     const previous = claimed.get(canonical);
     if (previous !== undefined && previous !== header) {

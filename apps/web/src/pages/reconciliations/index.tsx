@@ -32,9 +32,9 @@ export default function Reconciliations() {
       <h1>Reconciliation runs</h1>
       <p className="notice">
         Demo only — viewing as the demo Ops user in organization {getOrganizationId()}. A run
-        compares the QualiOS movement ledger against an uploaded external record set (a seed-to-sale
-        export, an allocation, or a paper count sheet) and opens a discrepancy for every mismatch.
-        Nothing is auto-resolved.
+        compares the QualiOS movement ledger against an uploaded external record set (an
+        external-system export, an allocation, or a paper count sheet) and opens a discrepancy for
+        every mismatch. Nothing is auto-resolved.
       </p>
       <p>
         <Link href="/reconciliations/new">Run a new reconciliation</Link>

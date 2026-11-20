@@ -47,10 +47,11 @@ jobs:
         run: npm ci
 
       - name: Build workspace packages
-        # apps/api imports @qualios/db and @qualios/storage via their
-        # compiled dist/ (package exports). Build them before lint/test so
-        # the imports resolve to the current sources.
-        run: npm run build --workspace=packages/db --workspace=packages/storage
+        # apps/api imports @qualios/db, @qualios/storage, @qualios/domain
+        # and @qualios/industry-packs via their compiled dist/ (package
+        # exports). Build them before lint/test so the imports resolve to
+        # the current sources.
+        run: npm run build --workspace=packages/db --workspace=packages/storage --workspace=packages/domain --workspace=packages/industry-packs
 
       - name: Lint
         run: npm run lint

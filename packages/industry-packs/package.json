@@ -1,13 +1,24 @@
 {
-  "description": "QualiOS industry packs — first pack: Canadian cannabis (STUB).",
+  "description": "QualiOS industry packs — pack registry and contributions (cannabis, food, industrial). The core stays industry-neutral; packs contribute taxonomy, listing types, tax bases, dispositions, import aliases and attribute keys.",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "license": "UNLICENSED",
+  "main": "./dist/index.js",
   "name": "@qualios/industry-packs",
   "private": true,
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "version": "0.1.0",
-  "devDependencies": {
-    "typescript": "^7.0.2"
-  }
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0"
 }

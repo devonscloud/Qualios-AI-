@@ -162,7 +162,7 @@ export default function ReconciliationDetail() {
                 <td>{line.lot_number ?? "—"}</td>
                 <td>{line.match_status}</td>
                 <td>{formatQty(line.paper_record_qty_mg, line.paper_record_qty_units)}</td>
-                <td>{formatQty(line.seed_to_sale_qty_mg, line.seed_to_sale_qty_units)}</td>
+                <td>{formatQty(line.external_qty_mg, line.external_qty_units)}</td>
                 <td>{formatQty(line.allocated_qty_mg, line.allocated_qty_units)}</td>
                 <td>{formatQty(line.produced_qty_mg, line.produced_qty_units)}</td>
                 <td>{formatQty(line.variance_mg, line.variance_units)}</td>

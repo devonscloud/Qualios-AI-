@@ -13,7 +13,7 @@ import { runReconciliationEngine } from "../lib/reconcile.js";
  *
  * A run compares the QualiOS ledger (derived from inventory_movements)
  * against one external record set — the accepted rows of an import run
- * (seed-to-sale export, paper count sheet, or allocation). The engine
+ * (an external-system snapshot, paper count sheet, or allocation). The engine
  * (lib/reconcile.ts) creates the lines and discrepancies; a run with no
  * discrepancies still needs a human to close it — a clean run is not
  * auto-approved. Tenant scoping is enforced upstream by tenantMiddleware
@@ -36,7 +36,7 @@ interface ReconciliationRow {
   run_by: string;
   status: string;
   summary: Record<string, unknown>;
-  seed_to_sale_snapshot_id: string | null;
+  external_snapshot_document_id: string | null;
   external_import_run_id: string | null;
   created_at: string;
   updated_at: string;
@@ -48,8 +48,8 @@ interface LineRow {
   lot_id: string | null;
   product_id: string | null;
   lot_number: string | null;
-  seed_to_sale_qty_mg: number | null;
-  seed_to_sale_qty_units: number | null;
+  external_qty_mg: number | null;
+  external_qty_units: number | null;
   paper_record_qty_mg: number | null;
   paper_record_qty_units: number | null;
   allocated_qty_mg: number | null;
@@ -97,7 +97,7 @@ function toRunSummary(row: ReconciliationRow): Record<string, unknown> {
     run_by: row.run_by,
     status: row.status,
     summary: row.summary,
-    seed_to_sale_snapshot_id: row.seed_to_sale_snapshot_id,
+    external_snapshot_document_id: row.external_snapshot_document_id,
     external_import_run_id: row.external_import_run_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -111,8 +111,8 @@ function toLineSummary(row: LineRow): Record<string, unknown> {
     lot_id: row.lot_id,
     lot_number: row.lot_number,
     product_id: row.product_id,
-    seed_to_sale_qty_mg: row.seed_to_sale_qty_mg,
-    seed_to_sale_qty_units: row.seed_to_sale_qty_units,
+    external_qty_mg: row.external_qty_mg,
+    external_qty_units: row.external_qty_units,
     paper_record_qty_mg: row.paper_record_qty_mg,
     paper_record_qty_units: row.paper_record_qty_units,
     allocated_qty_mg: row.allocated_qty_mg,
@@ -153,7 +153,7 @@ function toDiscrepancySummary(row: DiscrepancyRow): Record<string, unknown> {
 
 const RECONCILIATION_COLUMNS = `
   id, organization_id, site_id, scope_type, scope_reference, started_at,
-  completed_at, run_by, status, summary, seed_to_sale_snapshot_id,
+  completed_at, run_by, status, summary, external_snapshot_document_id,
   external_import_run_id, created_at, updated_at
 `;
 

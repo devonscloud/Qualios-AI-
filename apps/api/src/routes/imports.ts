@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { recordAuditEvent } from "@qualios/db";
+import { importHeaderAliasesForPacks, sourceSystemsForPack } from "@qualios/industry-packs";
 import { buildImportStorageKey } from "@qualios/storage";
 import { parseTabularFile, TabularParseError } from "../lib/csv.js";
 import { isTenantMember, isUuid, withTenant } from "../lib/db.js";
@@ -17,13 +18,20 @@ import {
   RowValidationError,
   validateExplicitMapping,
   validateMappingCoverage,
+  type CanonicalField,
   type FieldMapping,
   type MovementType,
 } from "../lib/imports.js";
+import { getEnabledPackIds } from "../lib/packs.js";
 import { getStorage } from "../lib/storage.js";
 
 /**
- * Seed-to-sale import routes — Sprint Days 14–16 (PRD FR-01, backlog Q-020).
+ * External record import routes — a cannabis-pack surface (B-110).
+ * The core concept is generic: an external record set (snapshot) or a
+ * list of movements (ledger). The cannabis pack contributes the
+ * seed-to-sale source system and its file header aliases; the core
+ * import kinds are EXTERNAL_SNAPSHOT, PAPER_COUNT, and ALLOCATION.
+ * This router is gated by requirePack("cannabis-ca") in app.ts.
  *
  *  POST /api/imports                  Upload a CSV/XLSX file and import it
  *  GET  /api/imports                  List import runs (tenant-scoped)
@@ -45,7 +53,7 @@ import { getStorage } from "../lib/storage.js";
 
 export const importsRouter = Router();
 
-const IMPORT_KINDS = ["SEED_TO_SALE", "PAPER_COUNT", "ALLOCATION"] as const;
+const IMPORT_KINDS = ["EXTERNAL_SNAPSHOT", "PAPER_COUNT", "ALLOCATION"] as const;
 type ImportKind = (typeof IMPORT_KINDS)[number];
 const IMPORT_MODES = ["SNAPSHOT", "LEDGER"] as const;
 type ImportMode = (typeof IMPORT_MODES)[number];
@@ -66,9 +74,32 @@ const POSITIVE_MOVEMENTS: readonly MovementType[] = ["RECEIVE", "TRANSFER_IN", "
 const NEGATIVE_MOVEMENTS: readonly MovementType[] = ["CONSUME", "TRANSFER_OUT", "DESTROY", "SHIP"];
 
 function sourceSystemFor(kind: ImportKind): string {
-  if (kind === "SEED_TO_SALE") return "SEED_TO_SALE";
+  if (kind === "EXTERNAL_SNAPSHOT") return "EXTERNAL_SYSTEM";
   if (kind === "PAPER_COUNT") return "PAPER_RECORD";
   return "MANUAL";
+}
+
+/**
+ * Validate the caller-supplied external source system (e.g. SEED_TO_SALE
+ * for the cannabis pack). It must be a source system registered by one of
+ * the tenant's enabled packs; null means "not stated".
+ */
+async function parseExternalSource(organizationId: string, value: unknown): Promise<string | null> {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string") {
+    throw badRequest("INVALID_FIELD", "source_system must be a string.");
+  }
+  const enabled = await getEnabledPackIds(organizationId);
+  const allowed = enabled.flatMap((packId) =>
+    sourceSystemsForPack(packId).map((source) => source.key),
+  );
+  if (!allowed.includes(value)) {
+    throw badRequest(
+      "INVALID_FIELD",
+      `source_system "${value}" is not registered by any pack enabled for this organization.`,
+    );
+  }
+  return value;
 }
 
 interface ImportRunRow {
@@ -77,6 +108,7 @@ interface ImportRunRow {
   site_id: string | null;
   import_kind: string;
   import_mode: string;
+  external_source: string | null;
   file_name: string;
   mime_type: string;
   sha256: string;
@@ -114,6 +146,7 @@ function toRunSummary(row: ImportRunRow): Record<string, unknown> {
     site_id: row.site_id,
     import_kind: row.import_kind,
     import_mode: row.import_mode,
+    external_source: row.external_source,
     file_name: row.file_name,
     mime_type: row.mime_type,
     sha256: row.sha256,
@@ -205,6 +238,8 @@ async function processRow(
     userId: string;
     importKind: ImportKind;
     importMode: ImportMode;
+    /** Pack-registered external source (e.g. SEED_TO_SALE), or null. */
+    externalSource: string | null;
     runId: string;
     rowNumber: number;
     values: Record<string, string>;
@@ -221,8 +256,17 @@ async function processRow(
   quantityMg: number | null;
   quantityUnits: number | null;
 }> {
-  const { organizationId, userId, importKind, importMode, runId, rowNumber, values, mapping } =
-    args;
+  const {
+    organizationId,
+    userId,
+    importKind,
+    importMode,
+    externalSource,
+    runId,
+    rowNumber,
+    values,
+    mapping,
+  } = args;
   const mapped = applyMapping(values, mapping);
   const lotNumber = mapped.lot_number ?? null;
 
@@ -402,9 +446,9 @@ async function processRow(
   await client.query(
     `INSERT INTO inventory_movements
        (id, organization_id, lot_id, location_id, movement_type,
-        quantity_mg, quantity_units, source_system, source_reference,
+        quantity_mg, quantity_units, source_system, source_system_detail, source_reference,
         document_id, recorded_at, entered_by, note)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11, $12)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, $12, $13)`,
     [
       movementId,
       organizationId,
@@ -414,6 +458,7 @@ async function processRow(
       sign * (quantityMg ?? 0),
       quantityUnits === null ? null : sign * quantityUnits,
       sourceSystemFor(importKind),
+      externalSource,
       mapped.source_reference ?? `IMPORT:${runId}:row${rowNumber}`,
       recordedDate === null ? new Date().toISOString() : recordedDate.toISOString(),
       userId,
@@ -450,6 +495,7 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
   }
   const importKind = parseImportKind(req.body.import_kind);
   const importMode = parseImportMode(req.body.import_mode);
+  const externalSource = await parseExternalSource(organizationId, req.body.source_system);
   const siteId = parseOptionalUuid(req.body.site_id, "site_id") ?? headerSiteId;
   const runId = randomUUID();
   const hash = sha256Hex(file.buffer);
@@ -478,9 +524,9 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
         }
         const inserted = await client.query<ImportRunRow>(
           `INSERT INTO import_runs
-             (id, organization_id, site_id, import_kind, import_mode, file_name,
+             (id, organization_id, site_id, import_kind, import_mode, external_source, file_name,
               mime_type, sha256, storage_key, mapping, status, error, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb, 'FAILED', $10, $11)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '{}'::jsonb, 'FAILED', $11, $12)
            RETURNING *`,
           [
             runId,
@@ -488,6 +534,7 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
             siteId,
             importKind,
             importMode,
+            externalSource,
             file.originalname,
             file.mimetype,
             hash,
@@ -521,7 +568,12 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
     mapping = validated.mapping;
     mappingErrors.push(...validated.errors);
   } else {
-    const auto = autoMapFields(tabular.headers);
+    // Pack-contributed header aliases (e.g. the cannabis pack's "Strain"
+    // column) are consulted after the generic core map.
+    const packAliases = importHeaderAliasesForPacks(
+      await getEnabledPackIds(organizationId),
+    ) as Record<string, CanonicalField>;
+    const auto = autoMapFields(tabular.headers, packAliases);
     mapping = auto.mapping;
     mappingErrors.push(...auto.errors);
   }
@@ -536,9 +588,9 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
       }
       const inserted = await client.query<ImportRunRow>(
         `INSERT INTO import_runs
-           (id, organization_id, site_id, import_kind, import_mode, file_name,
+           (id, organization_id, site_id, import_kind, import_mode, external_source, file_name,
             mime_type, sha256, storage_key, mapping, status, error, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'FAILED', $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, 'FAILED', $12, $13)
          RETURNING *`,
         [
           runId,
@@ -546,6 +598,7 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
           siteId,
           importKind,
           importMode,
+          externalSource,
           file.originalname,
           file.mimetype,
           hash,
@@ -586,15 +639,16 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
       }
       await client.query(
         `INSERT INTO import_runs
-           (id, organization_id, site_id, import_kind, import_mode, file_name,
+           (id, organization_id, site_id, import_kind, import_mode, external_source, file_name,
             mime_type, sha256, storage_key, mapping, status, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'COMPLETED', $11)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, 'COMPLETED', $12)`,
         [
           runId,
           organizationId,
           siteId,
           importKind,
           importMode,
+          externalSource,
           file.originalname,
           file.mimetype,
           hash,
@@ -613,6 +667,7 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
           userId,
           importKind,
           importMode,
+          externalSource,
           runId,
           rowNumber: row.rowNumber,
           values: row.values,
@@ -665,6 +720,7 @@ importsRouter.post("/", upload.single("file"), async (req: Request, res: Respons
           file_name: file.originalname,
           import_kind: importKind,
           import_mode: importMode,
+          external_source: externalSource,
           rows_total: total,
           rows_accepted: accepted,
           rows_rejected: rejected.length,

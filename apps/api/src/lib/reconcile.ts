@@ -9,12 +9,12 @@ import { badRequest } from "./errors.js";
  *   - the QualiOS ledger: current positions derived from inventory_movements
  *     (never a stored number — Data Model §2), and
  *   - the external record set: the accepted rows of one import run
- *     (a seed-to-sale export, a paper count sheet, or an allocation).
+ *     (an external-system snapshot, a paper count sheet, or an allocation).
  *
  * Classification rules (per lot, per quantity dimension — milligrams and
  * units are compared independently, because a lot can carry both):
  *
- *   SEED_TO_SALE / PAPER_COUNT (external = what the outside system says):
+ *   EXTERNAL_SNAPSHOT / PAPER_COUNT (external = what the outside system says):
  *     external > 0, ledger 0            -> PHANTOM_STOCK (nothing physical)
  *     external 0, ledger > 0            -> UNEXPLAINED_MOVEMENT
  *     external > ledger, both > 0       -> SHORTAGE (ledger short vs external)
@@ -37,9 +37,9 @@ import { badRequest } from "./errors.js";
  * config is a later decision, and silently tolerating a variance would hide
  * exactly what this wedge exists to find.
  *
- * Out of scope for v0: excise (the SK/MB difference in PRD case 5 is a
- * calculation, not an inventory discrepancy — the excise engine is a later
- * step and this engine performs no excise calculation).
+ * Out of scope for v0: tax (a jurisdictional tax difference is a
+ * calculation, not an inventory discrepancy — the tax engine is a later
+ * step and this engine performs no tax calculation).
  */
 
 export type DiscrepancyType =
@@ -229,7 +229,7 @@ export async function runReconciliationEngine(
       "The external import run failed; there is no external record set to compare.",
     );
   }
-  const importKind = importRun.import_kind as "SEED_TO_SALE" | "PAPER_COUNT" | "ALLOCATION";
+  const importKind = importRun.import_kind as "EXTERNAL_SNAPSHOT" | "PAPER_COUNT" | "ALLOCATION";
   const scope = parseScope(recon.scope_type, recon.scope_reference, recon.site_id);
 
   await client.query(
@@ -488,7 +488,7 @@ export async function runReconciliationEngine(
         if (led === 0 && ext > 0) {
           push(
             "PHANTOM_STOCK",
-            `External ${importKind === "SEED_TO_SALE" ? "seed-to-sale" : "paper"} record shows ${fmt(ext)} ${unitLabel} for lot ${comparison.lotNumber}; the QualiOS ledger shows 0 ${unitLabel}. Phantom stock in the external system.`,
+            `External ${importKind === "EXTERNAL_SNAPSHOT" ? "external-system" : "paper"} record shows ${fmt(ext)} ${unitLabel} for lot ${comparison.lotNumber}; the QualiOS ledger shows 0 ${unitLabel}. Phantom stock in the external system.`,
             dimension === "mg" ? ext : null,
             dimension === "units" ? ext : null,
           );
@@ -652,7 +652,7 @@ export async function runReconciliationEngine(
     await client.query(
       `INSERT INTO reconciliation_lines
          (reconciliation_id, lot_id, product_id,
-          seed_to_sale_qty_mg, seed_to_sale_qty_units,
+          external_qty_mg, external_qty_units,
           paper_record_qty_mg, paper_record_qty_units,
           allocated_qty_mg, allocated_qty_units,
           produced_qty_mg, produced_qty_units,

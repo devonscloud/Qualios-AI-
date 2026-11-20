@@ -1,7 +1,7 @@
 /**
  * STUB — @qualios/integrations (Days 7–12 scaffold).
  *
- * The wedge imports from seed-to-sale systems by FILE first (CSV/XLSX).
+ * The platform imports external records by FILE first (CSV/XLSX).
  * Live connectors are a P1 item and are designed against the REST API surface
  * (ADR-013: OpenAPI, webhook signatures, idempotency keys, scoped tokens).
  * Whether CertiCraft or other vendors expose a live API is unconfirmed —

@@ -1,13 +1,24 @@
 {
-  "description": "QualiOS versioned rule types — excise rules as configuration (STUB).",
+  "description": "QualiOS versioned rule types — generic tax rules as configuration; the cannabis pack registers PER_MG_THC as one basis among others.",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "license": "UNLICENSED",
+  "main": "./dist/index.js",
   "name": "@qualios/rules",
   "private": true,
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "version": "0.1.0",
-  "devDependencies": {
-    "typescript": "^7.0.2"
-  }
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0"
 }

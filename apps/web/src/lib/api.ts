@@ -113,6 +113,7 @@ export interface ImportRun {
   id: string;
   import_kind: string;
   import_mode: string;
+  external_source: string | null;
   file_name: string;
   status: string;
   rows_total: number;
@@ -138,8 +139,8 @@ export interface ReconciliationLine {
   id: string;
   lot_number: string | null;
   match_status: string;
-  seed_to_sale_qty_mg: number | null;
-  seed_to_sale_qty_units: number | null;
+  external_qty_mg: number | null;
+  external_qty_units: number | null;
   paper_record_qty_mg: number | null;
   paper_record_qty_units: number | null;
   allocated_qty_mg: number | null;

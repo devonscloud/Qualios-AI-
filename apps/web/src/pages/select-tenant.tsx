@@ -15,9 +15,9 @@ const DEMO_TENANTS = [
     sites: ["Regina Processing Facility (demo)"],
   },
   {
-    name: "Second Demo Tenant (synthetic)",
+    name: "Prairie Foods Co. — Demo Tenant (synthetic)",
     organizationId: "22222222-2222-4222-8222-222222222222",
-    sites: ["Demo Site A"],
+    sites: ["Winnipeg Production Kitchen (demo)"],
   },
 ];
 

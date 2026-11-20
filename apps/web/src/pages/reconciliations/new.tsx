@@ -11,7 +11,7 @@ import {
 
 /**
  * New reconciliation run — Days 14–18 (PRD FR-01 / FR-04).
- * Uploads the external record file (a seed-to-sale export, an allocation,
+ * Uploads the external record file (an external-system snapshot, an allocation,
  * or a paper count sheet), picks a scope, creates the run, and executes the
  * engine — then lands on the run detail page. The upload is a SNAPSHOT: its
  * rows are the external record set; nothing is written into the ledger.
@@ -19,7 +19,7 @@ import {
 export default function NewReconciliation() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
-  const [importKind, setImportKind] = useState("SEED_TO_SALE");
+  const [importKind, setImportKind] = useState("EXTERNAL_SNAPSHOT");
   const [scopeType, setScopeType] = useState("SITE");
   const [scopeReference, setScopeReference] = useState("ALL");
   const [step, setStep] = useState<string | null>(null);
@@ -129,9 +129,9 @@ export default function NewReconciliation() {
       <h1>Run a new reconciliation</h1>
       <p className="notice">
         Demo only — running as the demo Ops user in organization {getOrganizationId()}. The file is
-        the external record set: a seed-to-sale export, an allocation, or a paper count sheet (CSV
-        or XLSX, max 25 MB). Columns map automatically by header name — lot, product, quantity (mg,
-        g, kg, or units), movement type, date, location.
+        the external record set: an external-system snapshot, an allocation, or a paper count sheet
+        (CSV or XLSX, max 25 MB). Columns map automatically by header name — lot, product, quantity
+        (mg, g, kg, or units), movement type, date, location.
       </p>
       <form onSubmit={onSubmit}>
         <label>
@@ -146,7 +146,7 @@ export default function NewReconciliation() {
         <label>
           Record kind
           <select onChange={(event) => setImportKind(event.target.value)} value={importKind}>
-            <option value="SEED_TO_SALE">Seed-to-sale export</option>
+            <option value="EXTERNAL_SNAPSHOT">External system snapshot</option>
             <option value="ALLOCATION">Allocation</option>
             <option value="PAPER_COUNT">Paper count sheet</option>
           </select>

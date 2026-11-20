@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 
 /**
- * Tabular file parsing for seed-to-sale imports (PRD FR-01).
+ * Tabular file parsing for external record imports (PRD FR-01).
  *
  * Both supported formats produce the same shape: a header row plus data
  * rows, each row carrying its 1-based data-row number (header excluded) so
@@ -9,7 +9,7 @@ import * as XLSX from "xlsx";
  *
  * CSV is parsed here (quoted fields, escaped quotes, CRLF/LF) rather than
  * pulled in as a dependency. XLSX is read with the `xlsx` package (first
- * sheet only — a seed-to-sale export is one table per file).
+ * sheet only — an external-system export is one table per file).
  *
  * Quantities are integers in the database (milligrams or units — Data Model
  * conventions), but files routinely carry decimals (1.338 kg). Conversion
