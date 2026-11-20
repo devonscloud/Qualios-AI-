@@ -1,7 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { Pool } from "pg";
 import { createApp } from "./app.js";
 
 const ORG_ID = "11111111-1111-4111-8111-111111111111";
+const DATABASE_URL = process.env.DATABASE_URL;
+
+/**
+ * B-108: the two tests below touch the database. Without a migrated
+ * PostgreSQL they must skip — not fail. Readiness is probed once in
+ * beforeAll: the tables must actually exist, not just DATABASE_URL being
+ * set (an unmigrated database is still "no usable database" for these
+ * tests). The DB-backed suites (documents.test.ts, reconciliation.test.ts,
+ * sop-training.test.ts) migrate the database themselves in beforeAll, so
+ * when the full suite runs against a migrated database these tests run
+ * and must pass.
+ */
+let dbReady = false;
+
+beforeAll(async () => {
+  if (!DATABASE_URL) return;
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  try {
+    await pool.query("SELECT 1 FROM reconciliations LIMIT 1");
+    await pool.query("SELECT 1 FROM discrepancies LIMIT 1");
+    dbReady = true;
+  } catch {
+    dbReady = false;
+  } finally {
+    await pool.end();
+  }
+});
 
 describe("qualios-api smoke tests (Days 7–12 scaffold)", () => {
   let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
@@ -47,7 +75,10 @@ describe("qualios-api smoke tests (Days 7–12 scaffold)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /api/reconciliations with tenant context returns a list (implemented Days 14–18)", async () => {
+  it("GET /api/reconciliations with tenant context returns a list (implemented Days 14–18)", async ({
+    skip,
+  }) => {
+    if (!dbReady) skip();
     const res = await fetch(`${baseUrl}/api/reconciliations`, {
       headers: { "x-organization-id": ORG_ID },
     });
@@ -56,7 +87,10 @@ describe("qualios-api smoke tests (Days 7–12 scaffold)", () => {
     expect(Array.isArray(body.reconciliations)).toBe(true);
   });
 
-  it("GET /api/discrepancies with tenant context returns a list (implemented Days 14–18)", async () => {
+  it("GET /api/discrepancies with tenant context returns a list (implemented Days 14–18)", async ({
+    skip,
+  }) => {
+    if (!dbReady) skip();
     const res = await fetch(`${baseUrl}/api/discrepancies`, {
       headers: { "x-organization-id": ORG_ID },
     });

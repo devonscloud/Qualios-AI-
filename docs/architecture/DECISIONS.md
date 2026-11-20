@@ -60,15 +60,15 @@ Public API surface with OpenAPI, signed webhooks with retry queues and duplicate
 
 ## Open decisions (need Devon's call)
 
-| # | Decision | Why it blocks | Phase |
-|---|---|---|---|
-| OD-1 | Managed auth provider (and MFA approach) | Nothing can be demonstrated to a real customer without real auth; the production-start refusal stays until this is made. | 1 |
-| OD-2 | Billing provider | Subscriptions, trials, invoices, and payment handling cannot be built without it. | 1 |
-| OD-3 | Hosting / managed cloud (confirm or replace ADR-009) | No staging or production environment exists. | 1 |
-| OD-4 | AI provider (and DPA / data-residency review) | No assistant work can start; no customer data may go to a provider before this. | 3 |
-| OD-5 | Mobile stack (confirm React Native/Expo) | Mobile apps cannot start. | 5 |
-| OD-6 | First industry pack(s) to validate beyond cannabis | Phase 6 sequencing: which pack after cannabis, and which pilot customer proves it. The core is built industry-neutral regardless; this decides pack order only. | 6 |
-| OD-7 | Excise/tax rule review (domain expert / accountant) | Excise calculation routes stay 501 until rules are reviewed; no excise number may be shown to a customer before this. | 6 |
+| #    | Decision                                             | Why it blocks                                                                                                                                                   | Phase |
+| ---- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| OD-1 | Managed auth provider (and MFA approach)             | Nothing can be demonstrated to a real customer without real auth; the production-start refusal stays until this is made.                                        | 1     |
+| OD-2 | Billing provider                                     | Subscriptions, trials, invoices, and payment handling cannot be built without it.                                                                               | 1     |
+| OD-3 | Hosting / managed cloud (confirm or replace ADR-009) | No staging or production environment exists.                                                                                                                    | 1     |
+| OD-4 | AI provider (and DPA / data-residency review)        | No assistant work can start; no customer data may go to a provider before this.                                                                                 | 3     |
+| OD-5 | Mobile stack (confirm React Native/Expo)             | Mobile apps cannot start.                                                                                                                                       | 5     |
+| OD-6 | First industry pack(s) to validate beyond cannabis   | Phase 6 sequencing: which pack after cannabis, and which pilot customer proves it. The core is built industry-neutral regardless; this decides pack order only. | 6     |
+| OD-7 | Excise/tax rule review (domain expert / accountant)  | Excise calculation routes stay 501 until rules are reviewed; no excise number may be shown to a customer before this.                                           | 6     |
 
 ## Decisions made in this revision (20 Nov 2026)
 

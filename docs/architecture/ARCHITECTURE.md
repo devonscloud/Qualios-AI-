@@ -50,17 +50,17 @@ The cannabis reconciliation engine already built is the cannabis pack's Phase 4 
 
 ## 2. Suggested stack (blueprint §7 — validate against team skills and cost)
 
-| Layer | Choice | Status |
-|---|---|---|
-| Web | Next.js / TypeScript / React | Implemented (scaffold) |
-| Mobile | React Native / Expo | **Missing** — OPEN DECISION: mobile stack confirmation |
-| API | TypeScript Node.js (Express 5) | Implemented |
-| Database | PostgreSQL 16 | Implemented (local dev; no staging/prod) |
-| Identity | Managed provider with MFA | **Missing** — OPEN DECISION: provider selection |
-| Object storage | Encrypted S3-compatible storage | Local filesystem backend only; S3 not wired |
-| Queue / event bus | Queue + workers for OCR, AI review, imports, reports | **Missing** — worker stub throws; no queue configured |
-| Deployment | Managed cloud | **Missing** — OPEN DECISION: hosting; Replit is prototype-only (ADR-009, to confirm) |
-| Billing | Provider TBD | **Missing** — OPEN DECISION: billing provider |
+| Layer             | Choice                                               | Status                                                                               |
+| ----------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Web               | Next.js / TypeScript / React                         | Implemented (scaffold)                                                               |
+| Mobile            | React Native / Expo                                  | **Missing** — OPEN DECISION: mobile stack confirmation                               |
+| API               | TypeScript Node.js (Express 5)                       | Implemented                                                                          |
+| Database          | PostgreSQL 16                                        | Implemented (local dev; no staging/prod)                                             |
+| Identity          | Managed provider with MFA                            | **Missing** — OPEN DECISION: provider selection                                      |
+| Object storage    | Encrypted S3-compatible storage                      | Local filesystem backend only; S3 not wired                                          |
+| Queue / event bus | Queue + workers for OCR, AI review, imports, reports | **Missing** — worker stub throws; no queue configured                                |
+| Deployment        | Managed cloud                                        | **Missing** — OPEN DECISION: hosting; Replit is prototype-only (ADR-009, to confirm) |
+| Billing           | Provider TBD                                         | **Missing** — OPEN DECISION: billing provider                                        |
 
 ## 3. Tenancy and isolation (defence in depth, ADR-008)
 
@@ -74,14 +74,14 @@ Additional rules: least privilege; scoped service accounts; storage keys are ten
 
 ## 4. Core services (target)
 
-- **Document / version service** — upload, immutable versions, review/approval, effective dates, distribution, acknowledgements, archival, retention. *Generic upload/version/review implemented; SOP semantics missing.*
-- **Workflow engine** — state machines with enforced transitions and audit events on every transition. *Types only (`packages/workflows`); the enforcing engine was never built. `canTransition` is a pure helper nothing calls.*
-- **Notifications** — email/in-app, digests, quiet hours, escalation, human handoff. *Missing.*
-- **Search / retrieval** — tenant-scoped indexing for RAG, with citations, freshness controls, and evaluation sets. *Missing.*
-- **AI orchestration** — gateway with tool allowlists, permission-scoped functions, confirmation for high-impact actions, idempotency, action logs, rollback where feasible, rate limits. *Gateway stub only.*
-- **Integration gateway** — public APIs, webhooks (signed, retry queues, duplicate protection), connectors, import validation, rate limits. *Designed (ADR-013); file import only.*
-- **Billing / entitlements** — plans, seats, AI usage metering, invoices, taxes, payment failure handling. *Missing.*
-- **Observability** — structured logs, metrics, tracing, cost tracking, health/status. *Missing beyond a `/health` liveness endpoint.*
+- **Document / version service** — upload, immutable versions, review/approval, effective dates, distribution, acknowledgements, archival, retention. _Generic upload/version/review implemented; SOP semantics missing._
+- **Workflow engine** — state machines with enforced transitions and audit events on every transition. _Types only (`packages/workflows`); the enforcing engine was never built. `canTransition` is a pure helper nothing calls._
+- **Notifications** — email/in-app, digests, quiet hours, escalation, human handoff. _Missing._
+- **Search / retrieval** — tenant-scoped indexing for RAG, with citations, freshness controls, and evaluation sets. _Missing._
+- **AI orchestration** — gateway with tool allowlists, permission-scoped functions, confirmation for high-impact actions, idempotency, action logs, rollback where feasible, rate limits. _Gateway stub only._
+- **Integration gateway** — public APIs, webhooks (signed, retry queues, duplicate protection), connectors, import validation, rate limits. _Designed (ADR-013); file import only._
+- **Billing / entitlements** — plans, seats, AI usage metering, invoices, taxes, payment failure handling. _Missing._
+- **Observability** — structured logs, metrics, tracing, cost tracking, health/status. _Missing beyond a `/health` liveness endpoint._
 
 ## 5. Data
 

@@ -9,6 +9,7 @@ import { importsRouter } from "./routes/imports.js";
 import { reconciliationsRouter } from "./routes/reconciliations.js";
 import { discrepanciesRouter } from "./routes/discrepancies.js";
 import { exciseRouter } from "./routes/excise.js";
+import { trainingRouter } from "./routes/training.js";
 
 /** Build the Express app. Exported separately from index.ts so tests can start it on an ephemeral port. */
 export function createApp(): Express {
@@ -26,6 +27,7 @@ export function createApp(): Express {
   app.use("/api/reconciliations", reconciliationsRouter);
   app.use("/api/discrepancies", discrepanciesRouter);
   app.use("/api/excise", exciseRouter);
+  app.use("/api/training", trainingRouter);
 
   // Unknown routes.
   app.use((_req, res) => {

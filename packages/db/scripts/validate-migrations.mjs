@@ -72,6 +72,17 @@ const EXPECTED = {
     policies: 2,
     contains: ["ALTER TYPE discrepancy_status ADD VALUE IF NOT EXISTS 'EXPLAINED'"],
   },
+  // 0010 adds the SOP publish fields and the training tables (2 policies).
+  // Its ALTER TYPE ... ADD VALUE statements follow the 0009 pattern: the
+  // new values are not used by any statement in the migration itself.
+  "0010_sop_training.sql": {
+    creates: ["training_assignments", "training_completions"],
+    policies: 2,
+    contains: [
+      "ALTER TYPE document_type ADD VALUE IF NOT EXISTS 'SOP'",
+      "ALTER TYPE approval_action_type ADD VALUE IF NOT EXISTS 'SOP_PUBLISH'",
+    ],
+  },
 };
 
 let failures = 0;

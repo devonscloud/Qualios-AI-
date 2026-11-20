@@ -1,5 +1,5 @@
 {
-  "description": "QualiOS web app — Next.js frontend for the cannabis inventory wedge (scaffold).",
+  "description": "QualiOS web app — Next.js frontend for the multi-tenant quality-assurance platform (scaffold).",
   "license": "UNLICENSED",
   "name": "@qualios/web",
   "private": true,

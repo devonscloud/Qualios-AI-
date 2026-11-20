@@ -18,52 +18,64 @@
 ## 2. Threats and controls (carried forward from the threat model)
 
 ### T-01 — Cross-tenant data disclosure (HIGHEST RISK)
-*Controls (implemented, partially):* `organization_id` on every tenant table; RLS policies on all tenant tables; `withTenant()` per-transaction scoping; application queries scope by tenant; storage keys tenant-scoped and validated.
-*Residual risk:* RLS does not bite when the API connects as a superuser/owner (local dev today) — production must use a non-owner app role with `FORCE RLS`. No permission enforcement exists on routes yet. AI retrieval does not exist yet, so the retrieval layer is untested. **Gate:** tenant-isolation tests must pass before any commercial release; Phase 1 must add route-level permission checks.
+
+_Controls (implemented, partially):_ `organization_id` on every tenant table; RLS policies on all tenant tables; `withTenant()` per-transaction scoping; application queries scope by tenant; storage keys tenant-scoped and validated.
+_Residual risk:_ RLS does not bite when the API connects as a superuser/owner (local dev today) — production must use a non-owner app role with `FORCE RLS`. No permission enforcement exists on routes yet. AI retrieval does not exist yet, so the retrieval layer is untested. **Gate:** tenant-isolation tests must pass before any commercial release; Phase 1 must add route-level permission checks.
 
 ### T-02 — Unauthorized or forged approvals
-*Controls (implemented, partially):* approvals are rows with approver, decision, and timestamp; document review enforces reviewer ≠ uploader; every approval writes a hash-chained audit event in the same transaction.
-*Residual risk:* the identity behind the uploader/reviewer check comes from an unverified header (auth stub). Once real auth lands, approvals must be bound to verified identities, with e-signature meaning defined (blueprint §10: approval delegation, separation of duties, dual control).
+
+_Controls (implemented, partially):_ approvals are rows with approver, decision, and timestamp; document review enforces reviewer ≠ uploader; every approval writes a hash-chained audit event in the same transaction.
+_Residual risk:_ the identity behind the uploader/reviewer check comes from an unverified header (auth stub). Once real auth lands, approvals must be bound to verified identities, with e-signature meaning defined (blueprint §10: approval delegation, separation of duties, dual control).
 
 ### T-03 — Prompt injection via uploaded documents
-*Controls (designed, not built):* no AI consumes uploaded documents today, so there is no injection surface yet. The design requires: untrusted document content treated as data, never instructions; tool calls permission-scoped; high-impact actions confirmed.
-*Residual risk:* the first RAG/extraction implementation creates this surface. It must ship with injection test cases (malicious instructions embedded in a document must not change assistant behaviour or exfiltrate data).
+
+_Controls (designed, not built):_ no AI consumes uploaded documents today, so there is no injection surface yet. The design requires: untrusted document content treated as data, never instructions; tool calls permission-scoped; high-impact actions confirmed.
+_Residual risk:_ the first RAG/extraction implementation creates this surface. It must ship with injection test cases (malicious instructions embedded in a document must not change assistant behaviour or exfiltrate data).
 
 ### T-04 — Hallucinated or uncited AI answers
-*Controls (designed, not built):* grounded-answer contract (`Citation`/`GroundedAnswer` types): citations to exact records and versions, or an explicit "evidence insufficient" statement; evaluation sets; confidence and unknowns shown.
-*Residual risk:* no AI exists to hallucinate yet. The evaluation set (B-301) must exist before the assistant is shown to any customer.
+
+_Controls (designed, not built):_ grounded-answer contract (`Citation`/`GroundedAnswer` types): citations to exact records and versions, or an explicit "evidence insufficient" statement; evaluation sets; confidence and unknowns shown.
+_Residual risk:_ no AI exists to hallucinate yet. The evaluation set (B-301) must exist before the assistant is shown to any customer.
 
 ### T-05 — Permission leakage through AI retrieval
-*Controls (designed, not built):* tenant-scoped indexing; retrieval filtered by the caller's permissions and entitlements; no retrieval outside the tenant.
-*Residual risk:* untested by definition until retrieval exists. Cross-tenant retrieval tests are part of the first-milestone criteria (§12, item 7) and must fail closed.
+
+_Controls (designed, not built):_ tenant-scoped indexing; retrieval filtered by the caller's permissions and entitlements; no retrieval outside the tenant.
+_Residual risk:_ untested by definition until retrieval exists. Cross-tenant retrieval tests are part of the first-milestone criteria (§12, item 7) and must fail closed.
 
 ### T-06 — Audit log tampering
-*Controls (implemented):* append-only `audit_events` with per-organization SHA-256 hash chain and sequence; DB triggers reject UPDATE/DELETE; verification CLI (`verify-audit-chain`).
-*Residual risk:* TRUNCATE is not blocked by a trigger and requires privilege control; backups could be tampered with if not protected; no monitoring/alerting on chain-verification failure yet. Chain verification must become a scheduled check, not a manual command.
+
+_Controls (implemented):_ append-only `audit_events` with per-organization SHA-256 hash chain and sequence; DB triggers reject UPDATE/DELETE; verification CLI (`verify-audit-chain`).
+_Residual risk:_ TRUNCATE is not blocked by a trigger and requires privilege control; backups could be tampered with if not protected; no monitoring/alerting on chain-verification failure yet. Chain verification must become a scheduled check, not a manual command.
 
 ### T-07 — Data exfiltration via AI provider
-*Controls (designed, not built):* provider abstraction so the vendor can be swapped; no default training on customer data; DPA and subprocessor transparency required before any provider is used.
-*Residual risk:* no provider selected; no DPA exists. **Gate:** no customer data may be sent to any AI provider until provider selection, DPA, and data-residency review are complete.
+
+_Controls (designed, not built):_ provider abstraction so the vendor can be swapped; no default training on customer data; DPA and subprocessor transparency required before any provider is used.
+_Residual risk:_ no provider selected; no DPA exists. **Gate:** no customer data may be sent to any AI provider until provider selection, DPA, and data-residency review are complete.
 
 ### T-08 — Insecure prototype handling production data
-*Controls (implemented):* the API refuses to start in production while auth is a stub; local storage backend is documented as dev-only; demo seed is synthetic only.
-*Residual risk:* the refusal is a code check, not an infrastructure boundary. Staging/production must be separate environments with real secrets management before any real tenant data exists. No real Herba or customer data may be loaded into the current scaffold.
+
+_Controls (implemented):_ the API refuses to start in production while auth is a stub; local storage backend is documented as dev-only; demo seed is synthetic only.
+_Residual risk:_ the refusal is a code check, not an infrastructure boundary. Staging/production must be separate environments with real secrets management before any real tenant data exists. No real Herba or customer data may be loaded into the current scaffold.
 
 ### T-09 — Weak authentication / session hijack
-*Controls (designed, not built):* managed auth provider with MFA (ADR-011); enterprise SSO is a later phase.
-*Residual risk:* **current state is a header stub — there is no authentication at all.** This is the highest-priority gap (Phase 1, B-101). Session handling, token lifetimes, revocation, and MFA enrollment must be specified when the provider is selected (OPEN DECISION).
+
+_Controls (designed, not built):_ managed auth provider with MFA (ADR-011); enterprise SSO is a later phase.
+_Residual risk:_ **current state is a header stub — there is no authentication at all.** This is the highest-priority gap (Phase 1, B-101). Session handling, token lifetimes, revocation, and MFA enrollment must be specified when the provider is selected (OPEN DECISION).
 
 ### T-10 — Supply-chain / dependency compromise
-*Controls (implemented, partially):* lockfile committed; CI installs with `npm ci`; dependencies are pinned by the lockfile.
-*Residual risk:* no dependency vulnerability scanning in CI, no SBOM, no update policy. Add scanning before commercial release.
+
+_Controls (implemented, partially):_ lockfile committed; CI installs with `npm ci`; dependencies are pinned by the lockfile.
+_Residual risk:_ no dependency vulnerability scanning in CI, no SBOM, no update policy. Add scanning before commercial release.
 
 ### T-11 — Data loss / ransomware / failed restore
-*Controls (none):* no backups, no restore drills, no disaster-recovery targets, no incident response plan.
-*Residual risk:* total for any deployed data. Backups + restore drills are a Phase 1 deliverable (B-107) before staging holds anything that matters.
+
+_Controls (none):_ no backups, no restore drills, no disaster-recovery targets, no incident response plan.
+_Residual risk:_ total for any deployed data. Backups + restore drills are a Phase 1 deliverable (B-107) before staging holds anything that matters.
 
 ### T-12 — Regulatory over-claim
-*Controls (process):* honesty rules in §1; excise rules require expert review; no "certified/fully compliant" language.
-*Residual risk:* marketing copy (Phase 1 public site) is where this risk materializes. Every claim on the public site must trace to a tested feature; testimonials must be genuine; regulatory mappings require qualified review, dated source references, change tracking, and jurisdiction-specific applicability (blueprint §8). Mappings are pack content: a cannabis mapping never applies to a food tenant, and no pack's rules are treated as universal.
+
+_Controls (process):_ honesty rules in §1; excise rules require expert review; no "certified/fully compliant" language.
+_Residual risk:_ marketing copy (Phase 1 public site) is where this risk materializes. Every claim on the public site must trace to a tested feature; testimonials must be genuine; regulatory mappings require qualified review, dated source references, change tracking, and jurisdiction-specific applicability (blueprint §8). Mappings are pack content: a cannabis mapping never applies to a food tenant, and no pack's rules are treated as universal.
 
 ## 3. Security program (target, blueprint §8)
 

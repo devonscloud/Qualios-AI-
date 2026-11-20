@@ -1,5 +1,5 @@
 {
-  "description": "QualiOS AI — AI-assisted operating system for regulated manufacturing and quality-intensive businesses. Cannabis inventory wedge first.",
+  "description": "QualiOS AI — AI-assisted operating system for regulated manufacturing and quality-intensive businesses. A commercial multi-tenant quality-assurance platform for all regulated industries.",
   "engines": {
     "node": ">=20",
     "npm": ">=10"

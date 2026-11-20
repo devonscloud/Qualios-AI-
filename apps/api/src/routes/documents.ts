@@ -20,6 +20,15 @@ import { getStorage } from "../lib/storage.js";
  *  GET    /api/documents/:id                          Document + versions
  *  GET    /api/documents/:id/versions/:n/download     Download one stored version
  *  POST   /api/documents/:id/review                   Approve or reject (reviewer dashboard)
+ *  POST   /api/documents/:id/publish                  Publish an approved version as EFFECTIVE (SOPs)
+ *
+ * SOP publish lifecycle (B-201, Data Model §3): an SOP is a document with
+ * document_type 'SOP'. Upload → review/approve (VERIFIED) → publish marks
+ * one version EFFECTIVE with an effective date. Publishing a new version
+ * supersedes the previous effective version; uploading a new version
+ * clears the publish fields, because the new content has not been reviewed.
+ * Segregation of duties (T-02, mirrored from review): the publisher must
+ * differ from the uploader.
  *
  * Every write is tenant-scoped (ADR-008 layer 1: organization_id on every
  * query) and writes an audit event in the same transaction (Data Model §7).
@@ -43,6 +52,10 @@ const DOCUMENT_TYPES = [
   "TRANSFER_RECORD",
   "INVOICE",
   "LISTING_FORM",
+  "SOP",
+  "POLICY",
+  "FORM",
+  "MANUAL",
   "OTHER",
 ] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -71,6 +84,11 @@ interface DocumentRow {
   updated_at: string;
   version_count: string;
   latest_version: string | null;
+  effective_version_id: string | null;
+  effective_version: string | null;
+  effective_from: string | null;
+  published_at: string | null;
+  published_by: string | null;
 }
 
 interface VersionRow {
@@ -100,6 +118,11 @@ function toDocumentSummary(row: DocumentRow): Record<string, unknown> {
     updated_at: row.updated_at,
     version_count: Number(row.version_count),
     latest_version: row.latest_version === null ? null : Number(row.latest_version),
+    effective_version: row.effective_version === null ? null : Number(row.effective_version),
+    effective_version_id: row.effective_version_id,
+    effective_from: row.effective_from,
+    published_at: row.published_at,
+    published_by: row.published_by,
   };
 }
 
@@ -119,8 +142,10 @@ const DOCUMENT_SELECT = `
   d.id, d.organization_id, d.uploaded_by, u.display_name AS uploaded_by_name,
   d.storage_key, d.file_name, d.mime_type, d.sha256, d.document_type,
   d.linked_lot_id, d.linked_batch_id, d.status, d.created_at, d.updated_at,
+  d.effective_version_id, d.effective_from, d.published_at, d.published_by,
   (SELECT count(*) FROM document_versions v WHERE v.document_id = d.id) AS version_count,
-  (SELECT max(v.version_number) FROM document_versions v WHERE v.document_id = d.id) AS latest_version
+  (SELECT max(v.version_number) FROM document_versions v WHERE v.document_id = d.id) AS latest_version,
+  (SELECT v.version_number FROM document_versions v WHERE v.id = d.effective_version_id) AS effective_version
   FROM documents d
   LEFT JOIN users u ON u.id = d.uploaded_by
 `;
@@ -358,7 +383,9 @@ documentsRouter.post(
         );
         await client.query(
           `UPDATE documents SET
-           storage_key = $2, file_name = $3, mime_type = $4, sha256 = $5, status = 'UPLOADED'
+           storage_key = $2, file_name = $3, mime_type = $4, sha256 = $5, status = 'UPLOADED',
+           effective_version_id = NULL, effective_from = NULL,
+           published_at = NULL, published_by = NULL
          WHERE id = $1 AND organization_id = $6`,
           [documentId, storageKey, file.originalname, file.mimetype, hash, organizationId],
         );
@@ -410,18 +437,29 @@ documentsRouter.get("/review-queue", async (req: Request, res: Response) => {
   res.status(200).json({ documents: rows.map(toDocumentSummary) });
 });
 
-/** List documents for this tenant, newest first. */
+/** List documents for this tenant, newest first. Optional ?document_type=SOP filter. */
 documentsRouter.get("/", async (req: Request, res: Response) => {
   const { organizationId } = requireTenant(req);
   const limit = Math.min(Math.max(Number(req.query.limit ?? 50) || 50, 1), 100);
   const offset = Math.max(Number(req.query.offset ?? 0) || 0, 0);
-  const { rows } = await withTenant(organizationId, async (client) =>
-    client.query<DocumentRow>(
-      `SELECT ${DOCUMENT_SELECT} WHERE d.organization_id = $1
-       ORDER BY d.created_at DESC LIMIT $2 OFFSET $3`,
-      [organizationId, limit, offset],
-    ),
-  );
+  const documentType =
+    typeof req.query.document_type === "string" && req.query.document_type !== ""
+      ? parseDocumentType(req.query.document_type)
+      : null;
+  const { rows } = await withTenant(organizationId, async (client) => {
+    const conditions = ["d.organization_id = $1"];
+    const values: unknown[] = [organizationId];
+    if (documentType !== null) {
+      values.push(documentType);
+      conditions.push(`d.document_type = $${values.length}`);
+    }
+    values.push(limit, offset);
+    return client.query<DocumentRow>(
+      `SELECT ${DOCUMENT_SELECT} WHERE ${conditions.join(" AND ")}
+       ORDER BY d.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      values,
+    );
+  });
   res.status(200).json({ documents: rows.map(toDocumentSummary), limit, offset });
 });
 
@@ -568,6 +606,164 @@ documentsRouter.post("/:id/review", async (req: Request, res: Response) => {
         note,
         approval_id: approval.rows[0].id,
         new_status: newStatus,
+      },
+      modelVersion: null,
+      createdAt: new Date(),
+    });
+    return { document: updated.rows[0], approvalId: approval.rows[0].id };
+  });
+  res.status(200).json({
+    document: toDocumentSummary(result.document),
+    approval_id: result.approvalId,
+  });
+});
+
+/**
+ * Publish an SOP: mark one approved version EFFECTIVE from a date.
+ * Only documents of type SOP can be published, and only once they are
+ * VERIFIED (approved via review). The version published must be the latest
+ * version — the effective version is always the current content. The
+ * publisher must differ from the uploader (segregation of duties, T-02).
+ * Publishing supersedes the previous effective version, which stays
+ * retrievable (its stored object and version row are untouched).
+ */
+documentsRouter.post("/:id/publish", async (req: Request, res: Response) => {
+  const { organizationId, userId } = requireTenant(req);
+  const documentId = paramString(req.params.id, "document id");
+  if (!isUuid(documentId)) {
+    throw badRequest("INVALID_ID", "Document id must be a UUID.");
+  }
+  const versionNumber = Number(req.body?.version_number);
+  if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+    throw badRequest("INVALID_FIELD", "version_number must be a positive integer.");
+  }
+  const effectiveFromRaw = req.body?.effective_from;
+  let effectiveFrom: Date;
+  if (effectiveFromRaw === undefined || effectiveFromRaw === null || effectiveFromRaw === "") {
+    effectiveFrom = new Date();
+  } else if (typeof effectiveFromRaw === "string") {
+    effectiveFrom = new Date(effectiveFromRaw);
+    if (Number.isNaN(effectiveFrom.getTime())) {
+      throw badRequest("INVALID_FIELD", "effective_from must be an ISO 8601 date-time.");
+    }
+  } else {
+    throw badRequest("INVALID_FIELD", "effective_from must be an ISO 8601 date-time string.");
+  }
+
+  const result = await withTenant(organizationId, async (client) => {
+    if (!(await isTenantMember(client, organizationId, userId))) {
+      throw forbidden(
+        "USER_NOT_IN_TENANT",
+        "The calling user is not a member of this organization.",
+      );
+    }
+    const doc = await client.query<{
+      id: string;
+      uploaded_by: string;
+      status: string;
+      document_type: string;
+      effective_version_id: string | null;
+    }>(
+      `SELECT id, uploaded_by, status, document_type, effective_version_id
+       FROM documents WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
+      [documentId, organizationId],
+    );
+    if (doc.rows.length === 0) {
+      throw notFound("DOCUMENT_NOT_FOUND", "No document with this id in this organization.");
+    }
+    const current = doc.rows[0];
+    if (current.document_type !== "SOP") {
+      throw conflict(
+        "DOCUMENT_NOT_SOP",
+        "Only documents of type SOP can be published. Upload the document as an SOP first.",
+      );
+    }
+    if (current.status !== "VERIFIED") {
+      throw conflict(
+        "DOCUMENT_NOT_APPROVED",
+        `Document is ${current.status} and cannot be published. Approve it first.`,
+      );
+    }
+    if (current.uploaded_by === userId) {
+      throw forbidden(
+        "SEGREGATION_OF_DUTIES",
+        "The uploader cannot publish their own SOP; a different user must publish it.",
+      );
+    }
+    const version = await client.query<{
+      id: string;
+      version_number: number;
+    }>(
+      `SELECT id, version_number FROM document_versions
+       WHERE document_id = $1 AND version_number = $2`,
+      [documentId, versionNumber],
+    );
+    if (version.rows.length === 0) {
+      throw notFound("VERSION_NOT_FOUND", "No such version in this organization.");
+    }
+    const maxVersion = await client.query<{ max: string | null }>(
+      "SELECT max(version_number) AS max FROM document_versions WHERE document_id = $1",
+      [documentId],
+    );
+    if (Number(maxVersion.rows[0]?.max) !== versionNumber) {
+      throw conflict(
+        "VERSION_NOT_LATEST",
+        "Only the latest version can be published as effective. Upload a new version or publish the latest one.",
+      );
+    }
+    const previousEffective = await client.query<{ version_number: number }>(
+      "SELECT version_number FROM document_versions WHERE id = $1",
+      [current.effective_version_id],
+    );
+    const previousEffectiveVersion =
+      previousEffective.rows.length > 0 ? previousEffective.rows[0].version_number : null;
+    if (previousEffectiveVersion === versionNumber) {
+      throw conflict(
+        "VERSION_ALREADY_EFFECTIVE",
+        `Version ${versionNumber} is already the effective version.`,
+      );
+    }
+    const approval = await client.query<{ id: string; decided_at: string }>(
+      `INSERT INTO approvals
+         (organization_id, action_type, target_id, target_type, approver_id, decision, note)
+       VALUES ($1, 'SOP_PUBLISH', $2, 'document', $3, 'APPROVED', $4)
+       RETURNING id, decided_at`,
+      [
+        organizationId,
+        documentId,
+        userId,
+        `Published version ${versionNumber} as effective from ${effectiveFrom.toISOString()}.`,
+      ],
+    );
+    await client.query(
+      `UPDATE documents SET
+         effective_version_id = $2, effective_from = $3,
+         published_at = $4, published_by = $5
+       WHERE id = $1 AND organization_id = $6`,
+      [
+        documentId,
+        version.rows[0].id,
+        effectiveFrom.toISOString(),
+        new Date().toISOString(),
+        userId,
+        organizationId,
+      ],
+    );
+    const updated = await client.query<DocumentRow>(
+      `SELECT ${DOCUMENT_SELECT} WHERE d.id = $1 AND d.organization_id = $2`,
+      [documentId, organizationId],
+    );
+    await recordAuditEvent(client, {
+      organizationId,
+      actorId: userId,
+      eventType: "SOP_PUBLISHED",
+      targetType: "document",
+      targetId: documentId,
+      payload: {
+        version_number: versionNumber,
+        previous_effective_version: previousEffectiveVersion,
+        effective_from: effectiveFrom.toISOString(),
+        approval_id: approval.rows[0].id,
       },
       modelVersion: null,
       createdAt: new Date(),

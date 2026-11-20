@@ -5,8 +5,8 @@ export default function Home() {
     <main>
       <h1>QualiOS AI</h1>
       <p>
-        AI-assisted operating system for regulated manufacturing. First wedge: cannabis inventory
-        reconciliation + excise.
+        AI-assisted operating system for regulated manufacturing and quality-intensive businesses.
+        Quality assurance for every industry — configurable industry packs on one shared core.
       </p>
       <p className="notice">
         <strong>Scaffold only (v0.1.0).</strong> Nothing here is a finished product. The login and
@@ -18,6 +18,15 @@ export default function Home() {
         </li>
         <li>
           <Link href="/select-tenant">Select organization / site</Link>
+        </li>
+        <li>
+          <Link href="/sops">Standard operating procedures (SOPs)</Link>
+        </li>
+        <li>
+          <Link href="/sops/upload">Upload an SOP</Link>
+        </li>
+        <li>
+          <Link href="/training">Training</Link>
         </li>
         <li>
           <Link href="/documents/upload">Upload a document</Link>

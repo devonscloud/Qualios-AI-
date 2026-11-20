@@ -102,7 +102,7 @@ The milestone is Phases 1–2 plus the assistant slice of Phase 3 (criterion 7).
 7. The AI assistant can answer an authorized SOP question with a document citation and cannot retrieve another tenant's SOP.
 8. Automated integration/security tests demonstrate permissions, persistence, history and tenant isolation.
 
-**Status 20 Nov 2026: 0 of 8 fully met; 2 partially met (3 and 8); 6 missing** (audit §3). The SOP and training in this milestone are generic — the same flow serves a food-safety SOP, a pharma SOP, or a cannabis SOP; the industry difference is the pack's templates and content, not the workflow.
+**Status 20 Nov 2026: 4 of 8 fully met (3, 4, 5, 6); 1 partially met (8); 3 missing (1, 2, 7).** Criteria 3–6 were implemented 20 Nov 2026 (migration 0010; SOP publish, training assignment/completion/verification, manager review, dated CSV audit-trail export; 13 integration tests incl. two-tenant isolation). Criterion 8 is partially met: tenant isolation is now tested for the SOP/training workflow, but permission enforcement (B-103) still does not exist, so there are no permission tests. Caveat on 3–6: the flow runs under the header-stub tenant context — auth is still OPEN DECISION OD-1 and no role enforcement exists — so it is proven in dev, not yet demonstrable to a real customer. The SOP and training in this milestone are generic — the same flow serves a food-safety SOP, a pharma SOP, or a cannabis SOP; the industry difference is the pack's templates and content, not the workflow.
 
 ## Commercial model (blueprint §9 — hypotheses, unvalidated)
 

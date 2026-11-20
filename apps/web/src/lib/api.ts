@@ -14,6 +14,10 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001
 export const DEMO_ORG_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_OPS_USER_ID = "11111111-1111-4111-8111-111111111119";
 export const DEMO_QA_USER_ID = "11111111-1111-4111-8111-111111111113";
+// The demo Ops user doubles as the employee who completes training; the
+// demo QA approver doubles as the manager who assigns and verifies it.
+export const DEMO_EMPLOYEE_USER_ID = DEMO_OPS_USER_ID;
+export const DEMO_MANAGER_USER_ID = DEMO_QA_USER_ID;
 
 export function getOrganizationId(): string {
   if (typeof window === "undefined") return DEMO_ORG_ID;
@@ -42,6 +46,11 @@ export interface DocumentSummary {
   updated_at: string;
   version_count: number;
   latest_version: number | null;
+  effective_version: number | null;
+  effective_version_id: string | null;
+  effective_from: string | null;
+  published_at: string | null;
+  published_by: string | null;
 }
 
 export interface DocumentVersion {
@@ -52,6 +61,39 @@ export interface DocumentVersion {
   created_by: string;
   created_at: string;
   change_note: string | null;
+}
+
+export interface TrainingCompletion {
+  id: string;
+  user_id: string;
+  document_id: string;
+  version_number: number;
+  acknowledgement: boolean;
+  assessment_score: number | null;
+  completed_at: string;
+}
+
+export interface TrainingAssignment {
+  id: string;
+  organization_id: string;
+  document_id: string;
+  document_file_name: string;
+  document_type: string;
+  version_number: number;
+  assignee_id: string;
+  assignee_name: string | null;
+  assigned_by: string;
+  assigned_by_name: string | null;
+  due_at: string;
+  status: string;
+  overdue: boolean;
+  completed_at: string | null;
+  verified_by: string | null;
+  verified_by_name: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+  completion: TrainingCompletion | null;
 }
 
 export interface AuditEvent {
