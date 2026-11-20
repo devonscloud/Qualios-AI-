@@ -1,0 +1,126 @@
+# QualiOS AI — Data Model
+
+**Version:** 1.0 (new plan) — 20 November 2026
+**Status:** Planning only. "Implemented" below means the table exists in `packages/db/migrations/0001–0009` and is used by code; "Planned" means it is specified here and does not exist.
+**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026.
+**Supersedes:** `QualiOS-Data-Model.md` (v1.0 wedge data model, goal workspace) as the plan of record. All entities from that model that are implemented are carried forward below; deferred entities from its §10 are folded into the planned sections.
+**Audit:** `QualiOS-Current-State-Audit-2026-11-20.md`.
+
+## Conventions (carried forward)
+
+- Every tenant table carries `organization_id uuid NOT NULL`. Every table carries `created_at` / `updated_at` (DB trigger `qualios_set_updated_at`); soft delete via `deleted_at` where applicable.
+- Money is **integer cents**; quantities that must not lose precision are integers (mg, cents, unit counts) — never floats.
+- Rules (excise, etc.) are versioned configuration rows, never hard-coded.
+- Positions are **derived from the movement ledger**, never edited directly.
+- Enum values are UPPER_SNAKE_CASE. UUIDs are `gen_random_uuid()`.
+- RLS is enabled on every tenant table; policies key on `app.current_organization_id`, set per transaction by `withTenant()`. Tables without `organization_id` (`users`) are gated by membership rows.
+- Audit events are append-only with a per-organization SHA-256 hash chain and a per-table sequence; UPDATE/DELETE are blocked by triggers (migration 0008).
+- A field with no verified source is left **blank and flagged, never guessed** (listings rule; applies everywhere).
+
+## 1. Tenancy and identity — implemented (migration 0001)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `organizations` | name, licence_number, country (default `CA`), currency (default `CAD`), status `ACTIVE/SUSPENDED/CLOSED` | **Planned addition:** plan/subscription fields (plan, trial ends, billing customer id) — do not exist yet. |
+| `sites` | organization_id, name, address, timezone, status | Facility/site; multi-site hierarchy is planned, not modeled. |
+| `users` | email, display_name, mfa_enrolled, status `INVITED/ACTIVE/SUSPENDED` | Not tenant-scoped at DB layer (no organization_id); gated by memberships. `mfa_enrolled` is stored but nothing enforces MFA yet. |
+| `roles` | organization_id (nullable = platform role), name, permissions `jsonb` | Permission names are defined in `packages/auth` types; **no route enforces them yet**. |
+| `memberships` | user_id, organization_id, site_id (nullable), role_id, status `ACTIVE/REVOKED` | `isTenantMember()` gates writes on ACTIVE membership. |
+
+**Planned:** `invitations` (email, organization_id, role_id, token hash, expires_at, status), `subscriptions` (organization_id, plan, status, trial_ends_at, seats, billing provider refs), `organization_settings` (per-tenant configuration: timezone, units, locale, retention).
+
+## 2. Products, lots, batches, inventory — implemented (migration 0002)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `products` | organization_id, name, brand, category (`DRIED_FLOWER, PRE_ROLL, INFUSED_PRE_ROLL, EXTRACT, VAPE_CART, EDIBLE, OTHER`), format, strain_type, thc_label_mg, thc_label_mg_per_g, gtin_upc/gtin_scc (text, leading zeros preserved), case_size, status | **CORE-NEUTRALITY VIOLATION (audit §6A, leaks 1–3):** the category enum is a cannabis product list, `strain_type` (`INDICA/SATIVA/HYBRID/BLEND`) is cannabis-only, and `thc_label_mg` / `thc_label_mg_per_g` are cannabis attributes — all on the shared core table. Remediation (B-110): core `products` keeps generic fields (name, SKU/GTIN, unit, status); category becomes a pack-configurable taxonomy; strain and THC move to a cannabis-pack product extension (pack-scoped table or attributes). The core must not know what THC is. |
+| `lots` | organization_id, product_id, lot_number, status (`ACTIVE, QUARANTINE, RELEASED_FOR_SALE, AWAITING_DESTRUCTION, DESTROYED, CLOSED`) | **Core-neutrality note (audit §6A, leak 4):** `AWAITING_DESTRUCTION` / `DESTROYED` are cannabis-regulatory lot states on the shared core table. Generic core states are active/quarantine/released/closed; destruction handling belongs to the pack (pack-defined disposition). |
+| `batches` | organization_id, status (`PLANNED, IN_PROGRESS, COMPLETED, CANCELLED`) | Scaffolding only; no production workflow uses it yet. |
+| `batch_inputs` | batch_id, lot_id, quantity | Raw material for genealogy; no genealogy query exists. |
+| `inventory_locations` | organization_id, site_id, name, state | |
+| `inventory_movements` | organization_id, lot_id, location, movement_type (`RECEIVE, TRANSFER_IN, TRANSFER_OUT, CONSUME, PRODUCE, PACKAGE, ADJUST, DESTROY, SHIP, RETURN`), quantity_mg, quantity_units, source_system (`SEED_TO_SALE, PAPER_RECORD, MANUAL, QUALIOS`), source ref | Append-only ledger; positions derived. **Core-neutrality note (audit §6A, leak 5):** `SEED_TO_SALE` is a cannabis traceability system named in the core `source_system` enum. Core source values are generic (`EXTERNAL_SYSTEM, PAPER_RECORD, MANUAL, QUALIOS`); seed-to-sale is a cannabis-pack source value. |
+
+**Planned (Phase 4):** `materials` / receiving / quarantine-release records, `suppliers` + `supplier_qualifications`, `purchase_orders`, `shipments`, `cycle_counts`. These are not modeled in detail yet — model them when B-409/B-404 work starts, on the same ledger pattern.
+
+## 3. Documents and extraction — implemented, SOP semantics planned (migration 0003)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `documents` | organization_id, uploaded_by, storage_key, file_name, mime_type, sha256, document_type (`BATCH_RECORD, PACKING_SLIP, COA, TRANSFER_RECORD, INVOICE, LISTING_FORM, OTHER`), linked_lot_id, linked_batch_id, status (`UPLOADED, EXTRACTING, AWAITING_VERIFICATION, VERIFIED, REJECTED`) | **Planned:** add `SOP` (and generic `POLICY`, `FORM`, `MANUAL`) to `document_type`; add publish lifecycle (see below) — the current status enum is a verification lifecycle, not a publish lifecycle. |
+| `document_versions` | document_id, version_number, storage_key, created_by, change_note | Immutable; a new version never overwrites. |
+| `extractions` | document_id, fields `jsonb`, confidence, status | Table exists; nothing writes to it (no OCR/AI extraction yet). |
+
+**Planned (Phase 2):** SOP publish fields on `documents` (or a `sop_publications` table): `effective_version_id`, `effective_from`, `superseded_at`, `distribution_scope` (roles/sites), plus `document_acknowledgements` (document_id, version_number, user_id, acknowledged_at) and `document_templates`.
+
+## 4. Training & competency — planned (Phase 2; nothing exists)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `training_matrices` | organization_id, role_id, required document/course, due cadence | Role-based requirements. |
+| `training_assignments` | organization_id, document_id, version_number, assignee_id, assigned_by, due_at, status (`ASSIGNED, IN_PROGRESS, COMPLETED, OVERDUE, EXEMPTED`) | Manager assigns; employee completes. |
+| `training_completions` | assignment_id, user_id, document_version, assessment_score, acknowledgement, completed_at | Completion is recorded against a specific SOP version. |
+| `qualifications` | user_id, qualification, expires_at, verified_by | Refresher/retraining and expiry. |
+
+No training tables, routes, or pages exist today. Model these when B-202/B-203 starts.
+
+## 5. Reconciliation and discrepancies — implemented (migrations 0004, 0009)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `import_runs` | organization_id, site_id, import_kind (`SEED_TO_SALE, PAPER_COUNT, ALLOCATION`), import_mode (`SNAPSHOT, LEDGER`), status (`COMPLETED, COMPLETED_WITH_ERRORS, FAILED`), file ref | SNAPSHOT rows are compared against; LEDGER rows write movements. **Core-neutrality note (audit §6A, leak 5):** `SEED_TO_SALE` is a cannabis-pack import kind. Core kinds are generic (`EXTERNAL_SNAPSHOT, PAPER_COUNT, ALLOCATION`); the cannabis pack registers seed-to-sale. |
+| `import_rows` | import_run_id, raw data, status (`ACCEPTED, REJECTED`), rejection reason, movement_id (LEDGER mode) | |
+| `reconciliations` | organization_id, site_id, scope_type (`LOT, PRODUCT, SITE, DATE_RANGE`), scope_reference, run_by, status (`DRAFT, RUNNING, REVIEW, RESOLUTION_PENDING, APPROVED, CLOSED`), summary `jsonb`, seed_to_sale_snapshot_id | |
+| `reconciliation_lines` | reconciliation_id, lot/product refs, expected vs actual (mg and units), match_status (`MATCH, VARIANCE, MISSING_SOURCE`) | Unit columns added in migration 0009. |
+| `discrepancies` | reconciliation_id, type (`PHANTOM_STOCK, SHORTAGE, UNALLOCATED_PRODUCTION, LOT_MISMATCH, BULK_VS_PACKAGED, UNEXPLAINED_MOVEMENT`), severity (`LOW, MEDIUM, HIGH, CRITICAL`), status (`OPEN, INVESTIGATING, RESOLUTION_PROPOSED, RESOLVED, ESCALATED, CLOSED, EXPLAINED`), evidence `jsonb` | State machine as types in `packages/workflows`; server-side enforcement not built (B-410). |
+
+## 6. Excise and tax — schema implemented, engine missing (migration 0005)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `excise_rules` | jurisdiction, effective_from/to, basis (`PER_MG_THC`), rate_cents_per_mg, flat_per_unit_cents, reviewed_by/at, status (`DRAFT, ACTIVE, SUPERSEDED`) | Configuration; must be reviewed by a domain expert before use. No rules have been reviewed. **Core-neutrality note (audit §6A, leak 6):** `PER_MG_THC` is the Canadian cannabis excise basis presented as the core's only tax basis. The core is a generic versioned-rule engine; packs register their own bases (per-mg-THC, per-unit, ad valorem, per-litre, …). |
+| `excise_calculations` | organization_id, lot/product refs, jurisdiction, thc_basis (`LABEL, TESTED`), thc_mg, excise_rule_id, amount cents, status (`DRAFT, FINAL`) | Working papers only; routes return 501; no calculation has ever run. |
+
+**Planned (Phase 6):** jurisdiction packs (`jurisdiction_rules`), obligation registers, compliance calendars, filing-preparation records. Excise stays a Phase 6 concern; the schema above is retained, not extended, until then.
+
+## 7. Distributor listings — schema only (migration 0006)
+
+`distributor_listings` (organization_id, listing_type `SK_ALLOCATION/SK_LISTING/MB_ALLOCATION/MBLL_PLAF`, period, status `DRAFT/REVIEW/APPROVED/EXPORTED`, generated_by, approved_by) and `listing_lines` (product/lot refs, quantity_units, price_cents, case_size, source). No routes or generation code. **Core-neutrality note (audit §6A, leak 7):** the `listing_type` enum is Saskatchewan/Manitoba cannabis distributor forms. Listing types become pack-configurable; the core holds a generic listing/distribution record.
+
+## 8. Approvals, audit, AI log — implemented (migrations 0007, 0008)
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| `approvals` | organization_id, action_type (`DISCREPANCY_RESOLUTION, RECONCILIATION_APPROVE, LISTING_APPROVE, EXCISE_FINALIZE, BATCH_RELEASE, DOCUMENT_REVIEW`), target_id/type, approver_id, decision (`APPROVED, REJECTED`), note, decided_at | **Planned additions:** `SOP_APPROVE`, `SOP_PUBLISH`, `TRAINING_VERIFY`, `CAPA_APPROVE`, `AUDIT_APPROVE` as new action types when those workflows land. |
+| `audit_events` | organization_id, actor_id, event_type, target_type/id, payload `jsonb`, model_version, created_at, previous_hash, event_hash, seq | Append-only; hash chain per organization; triggers block UPDATE/DELETE. |
+| `ai_interactions` | organization_id, user_id, prompt/answer refs, citations, model_version | Table exists; nothing writes to it (no AI yet). |
+
+## 9. Planned Phase 4–6 entities (not modeled in detail yet)
+
+Audits/CAPA (`audits`, `audit_findings`, `capas`, `effectiveness_verifications`), deviations/nonconformances/complaints, inspections, change control, risk register, production (`recipes`, `work_orders`, `production_logs`, `electronic_batch_records`), lab (`specifications`, `samples`, `lab_results`, `coas`, `oos_investigations`), equipment (`assets`, `calibrations`, `maintenance_logs`), safety (`incidents`, `hazards`, `near_misses`), finance (`customers`, `suppliers`, `quotes`, `orders`, `invoices`, `expenses`), analytics (`kpi_definitions`, `reports`, `scheduled_exports`), integrations (`api_keys`, `webhooks`, `webhook_deliveries`), notifications (`notification_preferences`, `digests`). Each gets a data-model section when its backlog item starts; all follow the conventions above (organization_id, RLS, audit events on critical writes).
+
+## 10. Industry-pack extension pattern (hard constraint, 20 Nov 2026)
+
+The core schema is industry-neutral. Packs extend it without changing core tables or core code:
+
+- **Pack-scoped tables** — a pack's extra attributes live in its own tables keyed to core rows (e.g. `cannabis_pack_product_attributes` keyed to `products.id` for strain and THC; `cannabis_pack_lot_dispositions` for destruction handling). Core queries never join pack tables unless the tenant has that pack enabled.
+- **Configurable taxonomies** — category, document-type, lot-state, and listing-type values that vary by industry are supplied by the enabled pack(s) as configuration, not as core enums. Core enums hold only values that are true for every industry.
+- **Rule bases** — the generic versioned-rule engine (§6) accepts bases registered by packs. The core never names a tax basis.
+- **Templates and workflows** — SOP templates, forms, checklists, import mappings, and workflow definitions are pack content, loaded per tenant by enabled pack.
+- **Entitlement gating** — a tenant sees a pack's tables, routes, and UI only when the pack is enabled for that tenant (subscription/entitlement). Pack routes (today: `/api/excise`, `/api/reconciliations`, `/api/imports`, `/api/discrepancies`) are pack surfaces mounted on the core, not core routes assumed present for every tenant.
+
+Remediation order (B-110): stop adding industry-specific concepts to the core now; extract the generic patterns (ledger-vs-snapshot reconciliation, versioned rule engine, generic listing record) and move the cannabis-specific values into the cannabis pack when that work is scheduled. Do not rewrite the implemented reconciliation engine wholesale — extract around it.
+
+## 11. Entity relationship summary
+
+```
+organizations 1—* sites, users (via memberships), roles, memberships
+organizations 1—* products, lots, batches, inventory_locations, inventory_movements
+organizations 1—* documents → document_versions, extractions
+organizations 1—* import_runs → import_rows; reconciliations → reconciliation_lines → discrepancies
+organizations 1—* excise_rules, excise_calculations, distributor_listings → listing_lines
+organizations 1—* approvals, audit_events, ai_interactions
+users *—* organizations (via memberships, with one role each)
+lots *—* batches (via batch_inputs); lots 1—* inventory_movements
+documents *—* lots/batches (linked_lot_id, linked_batch_id)
+reconciliations *—1 documents (seed_to_sale_snapshot_id)
+```

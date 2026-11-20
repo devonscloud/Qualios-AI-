@@ -1,0 +1,101 @@
+# QualiOS AI — Module Backlog
+
+**Version:** 1.0 (new plan) — 20 November 2026
+**Status:** Planning only. Effort estimates are rough (S/M/L) and unvalidated; nothing here is built unless the Current-State Audit says it is.
+**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026 (§4, §11).
+**Supersedes:** `QualiOS-Issue-Backlog.md` (P0/P1/P2 wedge backlog) and the day-numbering of `QualiOS-30-Day-Sprint-Plan.md`. Items from the old backlog that are still true are carried forward below and marked **[carried forward]**; the old P0/P1/P2 labels are retired — priority now follows the blueprint phases.
+**Audit:** `QualiOS-Current-State-Audit-2026-11-20.md`.
+
+## How to read this backlog
+
+- **Phase** follows blueprint §11 (0–6). Work is done in phase order; Phase 4 items already built (reconciliation) do not move earlier phases.
+- **Acceptance criteria** are the test for "done". A story is not done when its screens exist — it needs working functionality, automated tests, security review, user acceptance criteria, documentation, and a release decision.
+- **Risk** is the main thing that can go wrong.
+- **OPEN DECISION** means Devon's call is needed before the work can start properly.
+
+---
+
+## Phase 1 — SaaS foundation (first)
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-101 | As a new customer, I can sign up, choose a plan or trial, and create my isolated company tenant, so I can start using QualiOS. | Registration creates org + admin membership; tenant data unreachable from any other tenant (test); plan/trial recorded. | M | Auth provider choice | OPEN: auth provider, billing provider |
+| B-102 | As an admin, I can invite a user by email and assign a role, and the invitee can only access my tenant. | Invite → accept → membership; role enforced on routes; expired/revoked invites fail. | M | — | B-101 |
+| B-103 | As a platform operator, every API route enforces the caller's role/permissions, not just membership. | Permission checks on all routes; tests prove a READ_ONLY member cannot approve, resolve, or run a reconciliation. | M | Routes added without checks | B-101 |
+| B-104 | As a customer, I can configure my company, facilities/sites, and settings. | Settings API + page; site-scoped data respected. | S | — | B-101 |
+| B-105 | As a customer, I can manage my subscription (plan, seats, invoices, upgrade/downgrade/cancel) in a billing sandbox. | Billing sandbox flows work end-to-end with test payments; no real charges. | M | Billing provider choice | OPEN: billing provider |
+| B-106 | As a visitor, I can see what QualiOS does, its pricing, and start a trial from the public site. | Public pages: positioning, features, industry pages, pricing, trial, lead capture, help, policies, contact. | M | Over-claiming features | B-101 |
+| B-107 | As a platform operator, I can deploy to staging with a rollback plan and observe the system (logs, metrics, health). | Staging env; CI deploys; health/status visible; rollback tested. | M | Hosting choice | OPEN: hosting |
+| B-108 | As a developer, the test suite is honest without a database: DB-dependent tests skip, nothing fails for lack of Postgres. **[carried forward — audit finding]** | `npm test` with no Postgres: 0 failures, DB suites skipped; with Postgres: full suite green. | S | — | — |
+| B-109 | As a developer, the production-start refusal stays until real auth is wired. | `NODE_ENV=production` refuses to start while the stub middleware exists; removal of the stub removes the refusal in the same change. | S | Accidental exposure | B-101 |
+| B-110 | As a platform operator, the core is industry-neutral: no cannabis-specific (or any industry-specific) enums, columns, or route concepts in shared code. | Audit §6A leaks removed or scheduled: product category/strain/THC columns, `PER_MG_THC`-only excise basis, SK/MB listing types, seed-to-sale core enums moved to pack-scoped configuration; generic patterns (ledger-vs-snapshot reconciliation, versioned rule engine) extracted to the core; new industry behaviour goes behind the pack mechanism; no new core code names an industry. | M | Breaking the existing reconciliation engine while extracting it | B-404 |
+
+## Phase 2 — First complete QMS workflow (first milestone)
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-201 | As a QA manager, I can upload an SOP, create a new version, approve it, and publish an effective version with an effective date. | SOP type + publish lifecycle (draft → review → approve → effective); superseded versions retrievable; effective version is unambiguous. | M | Confusing publish with verification status | B-101–B-103 |
+| B-202 | As a QA manager, I can assign training on an SOP to an employee. | Assignment records who, what version, due date; assignee sees it. | S | — | B-201 |
+| B-203 | As an employee, I can view the current SOP and complete an assessment/acknowledgement that records completion. | Completion records user, SOP version, timestamp; assessment scored; acknowledgement explicit. | M | — | B-201, B-202 |
+| B-204 | As a manager, I can review training completion and export a dated audit trail of every step. | Completion dashboard; CSV/PDF export of the full trail (upload → versions → approval → publish → assignment → completion) with dates. | S | Export that omits steps | B-203 |
+| B-205 | As a QA manager, I can distribute a published SOP to roles/sites and track acknowledgements. | Distribution list; per-user acknowledgement state; overdue nudges. | S | — | B-201 |
+| B-206 | As a QA manager, I can run the whole workflow across two tenants and prove no cross-tenant leakage. | Multi-tenant integration test: tenant A cannot see, assign, or complete tenant B's SOPs or training. | M | — | B-201–B-204 |
+| B-207 | As a user, the SOP workflow works from the web app dashboard, not only via API. | Dashboard + SOP + training pages; no dead links; placeholder copy removed. | M | Screens without function | B-201–B-204 |
+
+## Phase 3 — Assistant & document intelligence
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-301 | As a user, I can ask the assistant a question about my company's SOPs and get an answer with a citation to the exact document version. | Cited answers; insufficient-evidence answers say so; evaluation set passes. | L | Hallucinated citations | B-201, OPEN: AI provider |
+| B-302 | As a tenant admin, I am assured the assistant can never retrieve another tenant's documents. | Tenant-scoped indexing; cross-tenant retrieval tests fail closed; prompt-injection tests pass. | M | Retrieval leakage (T-05) | B-301 |
+| B-303 | As a user, I can upload a scanned/paper record and have its fields extracted, with confidence shown and uncertain fields queued for my verification. | OCR/AI extraction with confidence + field locations; human verification queue; corrections attributed. | L | OCR quality on handwriting | Queue/worker (B-304) |
+| B-304 | As a developer, async jobs (OCR, AI review, imports, reports) run on a real queue with retries and dead-letter handling. **[carried forward]** | Queue configured; worker processes jobs; failures retry then dead-letter; per-job status visible. | M | — | OPEN: hosting |
+| B-305 | As a user, I get a daily briefing: my to-dos, overdue actions, upcoming audits, training expiries, risks, approvals. | Briefing generated from tenant data only; quiet hours respected. | M | Notification overload | B-301 |
+| B-306 | As a user, the assistant can draft a CAPA, create a task, or assemble an audit pack — but only with my confirmation for high-impact actions. | Action allowlist; confirmation flow; idempotency; action log; rollback where feasible. | L | Unauthorized action | B-301, B-302 |
+| B-307 | As a platform operator, every AI suggestion, its evidence, model version, human review, and action is logged. | `ai_interactions` written on every assistant call; log reviewable. | S | — | B-301 |
+
+## Phase 4 — Quality + operations
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-401 | As a QA lead, I can run internal/supplier audits with checklists, findings, evidence, and root-cause CAPAs with effectiveness verification. | Full audit/CAPA lifecycle; effectiveness check closes the loop. | L | — | B-201 |
+| B-402 | As a QA lead, I can record deviations, nonconformances, and complaints, and route them through approval workflows. | Deviation/NCR/complaint records with workflow states and approvals. | L | — | B-401 |
+| B-403 | As a production manager, I can manage recipes/BOMs, work orders, batch genealogy, production logs, and electronic batch records. | Work order → batch → genealogy traceable forward and backward. | L | — | B-401 |
+| B-404 | As an inventory manager, I can reconcile stock against an external record set and resolve discrepancies with evidence. The generic pattern is core; the seed-to-sale import is the cannabis pack's Phase 4 work. **[carried forward — IMPLEMENTED as cannabis-pack work]** | Already built (reconciliation engine v0). Remaining: extract the generic ledger-vs-snapshot pattern to the core; move seed-to-sale formats/mappings/source values into the cannabis pack (B-110); wire it into the Phase 1 auth/permissions model; re-verify tests with live Postgres. | S | Built before foundation; needs re-verification and pack extraction | B-103, B-110 |
+| B-405 | As a lab manager, I can manage specifications, sampling, results, COAs, and out-of-specification investigations. | Spec → sample → result → COA → OOS workflow; release recommendation recorded. | L | — | B-403 |
+| B-406 | As a QA lead, I can run a mock recall and trace a lot forward and backward through distribution. | Genealogy query; mock recall completes with distribution list. | M | Incomplete genealogy data | B-403, B-404 |
+| B-407 | As a facilities lead, I can manage equipment, calibration, maintenance, downtime, sanitation, and environmental monitoring. | Asset register; calibration due alerts; maintenance logs. | L | — | — |
+| B-408 | As a safety lead, I can log hazards, incidents, and near misses, and track safety training. | Incident intake; investigation workflow; safety training records. | M | — | B-202 |
+| B-409 | As a supply-chain lead, I can qualify suppliers, manage procurement, receiving, quarantine/release, and shipping. | Supplier qualification; receiving → quarantine → release flow. | M | — | B-404 |
+| B-410 | As a QA manager, I can enforce the workflow state machines (no illegal transitions) with audit events on every transition. **[carried forward]** | Workflow engine enforces transitions server-side; illegal transitions rejected and tested. | M | — | B-401–B-403 |
+| B-411 | As a user, I can generate distributor listings from reconciled data, with unverified fields left blank and flagged, never guessed. **Cannabis-pack item** (Saskatchewan/Manitoba listing types are pack configuration, not core enums). **[carried forward — schema only]** | Listing generation from reconciled data; blank-not-guessed rule enforced; approval before export; listing types supplied by the pack. | M | Invented numbers on forms | B-404 |
+
+## Phase 5 — Mobile & commercial launch
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-501 | As an employee, I can do my assigned tasks, inspections, and SOP guidance from Android/iOS, including offline capture that syncs safely. | Mobile parity for key tasks; offline queue; conflict handling; sync verified. | L | Sync conflicts | OPEN: mobile stack |
+| B-502 | As an employee, I can scan barcodes/QR codes, take camera uploads, and sign on mobile. | Scanning + capture + signature flows work on device. | M | — | B-501 |
+| B-503 | As a user, I get notifications that respect quiet hours and escalation rules. | Notification prefs; quiet hours; escalation. | S | Overload | B-501 |
+| B-504 | As a customer, I can pay, manage billing, and get support through production billing and a support channel. | Billing productionized; support ticketing; status page. | M | — | B-105 |
+| B-505 | As a platform operator, I can run a pilot rollout with pilot customers and genuine case studies. | Pilot onboarding checklist; Herba pilot evidence documented; case studies only from real results. | M | Over-claiming | B-501–B-504 |
+
+## Phase 6 — Industry and global expansion
+
+| ID | User story | Acceptance criteria | Effort | Risk | Depends on |
+|---|---|---|---|---|---|
+| B-601 | As a cannabis producer, I can use the Canada cannabis pack: traceability, testing, packaging, excise, jurisdictional reporting, controlled movements. **[carried forward — pack is a STUB]** | Pack rules/templates/workflows validated against real requirements; Herba pilot evidence. | L | Regulation hard-coded as universal | B-404, B-405 |
+| B-602 | As a finance lead, I can compute excise/tax working papers from reviewed, versioned rules — and nothing is ever auto-filed. **[carried forward — routes are 501]** | Excise rules reviewed by domain expert; calculation engine produces working papers; filing stays human. | M | Unreviewed rules; false filing claim | Expert review (external) |
+| B-603 | As an enterprise customer, I can use SSO and the public API with scoped tokens and signed webhooks. | SSO (managed provider); OpenAPI spec; webhook signatures, retries, idempotency. | L | — | B-101, B-103 |
+| B-604 | As a customer, I can use QualiOS in my language, currency, time zone, and units, with accessible UI. | Localization + WCAG-aligned UI; date/currency/unit handling per tenant. | L | — | B-501 |
+| B-605 | As an analyst, I can build configurable reports, scheduled exports, and KPI dashboards. | Report builder; scheduled exports; KPI definitions. | L | — | B-401–B-409 |
+| B-606 | As a customer, I can buy optional human-auditor services with scoping, qualifications, and independence controls. | Marketplace/services flow; evidence exchange; independence checks. | L | Conflicts of interest | B-401 |
+| B-607 | As a customer in food, pharma, industrial, or other sectors, I can use my industry's pack on the same shared core. | Additional packs (food/HACCP, pharma/GMP, industrial) as configurable rule sets; no core redesign. | L | — | B-601 |
+
+## Explicitly not in the backlog (non-goals)
+
+- A cannabis-only product or a standalone assistant.
+- Autonomous batch release, automatic filing, or any regulated action without human approval.
+- Claims of certification or "fully compliant" status.
+- Training the AI on customer data by default.
+- Any feature described as working before it is tested.

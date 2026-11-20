@@ -1,11 +1,11 @@
 # docs/product
 
-Product documentation for QualiOS AI.
+Product documentation for QualiOS AI — the plan of record under the Complete Master Blueprint v1.0 (20 November 2026).
 
-The full planning set (v0.1, 20 November 2026) lives in the project workspace:
+- `PRODUCT_REQUIREMENTS.md` — product requirements for the universal multi-tenant platform (industry-neutral core; cannabis is one industry pack).
+- `MODULE_BACKLOG.md` — prioritized backlog (B-101–B-607) by blueprint phase, with user stories, acceptance criteria, effort, and risk.
+- `ROADMAP.md` — phases 0–6, release gates, first-milestone acceptance criteria (blueprint §12), commercial model.
 
-- `QualiOS-PRD-Cannabis-Inventory-Wedge.md` — product requirements for the wedge
-- `QualiOS-30-Day-Sprint-Plan.md` — the 30-day sprint (this scaffold is Days 7–12)
-- `QualiOS-Issue-Backlog.md` — P0/P1/P2 backlog
+The old v1.0 planning docs (cannabis-wedge PRD, wedge backlog, 30-day sprint plan) remain in the project workspace under `~/workspace/goals/qualios-ai-cannabis-platform/files/` for history. They are **superseded** — do not build to them. The current-state audit (`QualiOS-Current-State-Audit-2026-11-20.md`, same folder) is the evidence base for these docs.
 
-These will move into this repo under `docs/product/` when the team agrees on the docs home. Until then, this folder is an index — do not duplicate the planning docs here.
+Planning only: nothing in these docs is built unless the audit says it is.
