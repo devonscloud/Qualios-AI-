@@ -41,6 +41,28 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Second demo user: the operations uploader. The demo flow is: Ops uploads a
+-- document, QA approves it. Two different users are required so the
+-- segregation-of-duties check (approver != uploader) can be exercised.
+INSERT INTO users (id, email, display_name, mfa_enrolled, status)
+VALUES (
+  '11111111-1111-4111-8111-111111111119',
+  'demo.ops@qualios.example',
+  'Demo Ops Uploader',
+  false,
+  'ACTIVE'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO roles (id, organization_id, name, permissions)
+VALUES (
+  '11111111-1111-4111-8111-111111111120',
+  '11111111-1111-4111-8111-111111111111',
+  'PRODUCTION',
+  '["document.upload"]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO memberships (id, user_id, organization_id, site_id, role_id, status)
 VALUES (
   '11111111-1111-4111-8111-111111111115',
@@ -48,6 +70,17 @@ VALUES (
   '11111111-1111-4111-8111-111111111111',
   NULL,
   '11111111-1111-4111-8111-111111111114',
+  'ACTIVE'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO memberships (id, user_id, organization_id, site_id, role_id, status)
+VALUES (
+  '11111111-1111-4111-8111-111111111121',
+  '11111111-1111-4111-8111-111111111119',
+  '11111111-1111-4111-8111-111111111111',
+  NULL,
+  '11111111-1111-4111-8111-111111111120',
   'ACTIVE'
 )
 ON CONFLICT (id) DO NOTHING;

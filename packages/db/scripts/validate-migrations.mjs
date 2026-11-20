@@ -51,6 +51,16 @@ const EXPECTED = {
     creates: ["approvals", "audit_events", "ai_interactions"],
     policies: 3,
   },
+  // 0008 adds no tables and no policies. It recreates the
+  // approval_action_type enum (to add DOCUMENT_REVIEW) inside its UP
+  // section — ALTER TYPE ... ADD VALUE cannot run inside the transaction
+  // the migrate runner uses, so recreation is the transactional way.
+  // allowDropTypeInUp is the documented exception for exactly that.
+  "0008_audit_chain.sql": {
+    creates: [],
+    policies: 0,
+    allowDropTypeInUp: true,
+  },
 };
 
 let failures = 0;
@@ -89,8 +99,15 @@ for (const file of readdirSync(dir)
   if (policyCount !== expected.policies) {
     fail(file, `expected ${expected.policies} CREATE POLICY in UP, found ${policyCount}`);
   }
-  if (/DROP\s+(TABLE|VIEW|TYPE)\s/i.test(up)) {
-    fail(file, "UP section contains a DROP statement");
+  // UP must not drop tables/views. Dropping a TYPE in UP is only allowed
+  // where the migration explicitly documents an enum recreation
+  // (allowDropTypeInUp) — the old type is dropped after the new one is
+  // created and the column is converted, so no data is lost.
+  if (/DROP\s+(TABLE|VIEW)\s/i.test(up)) {
+    fail(file, "UP section contains a DROP TABLE/VIEW statement");
+  }
+  if (/DROP\s+TYPE\s/i.test(up) && !expected.allowDropTypeInUp) {
+    fail(file, "UP section contains a DROP TYPE statement");
   }
   const opens = (up.match(/\(/g) ?? []).length;
   const closes = (up.match(/\)/g) ?? []).length;

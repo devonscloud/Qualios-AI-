@@ -19,6 +19,12 @@ export default function Home() {
         <li>
           <Link href="/select-tenant">Select organization / site</Link>
         </li>
+        <li>
+          <Link href="/documents/upload">Upload a document</Link>
+        </li>
+        <li>
+          <Link href="/documents/review">Review queue</Link>
+        </li>
       </ul>
     </main>
   );

@@ -1,22 +1,33 @@
 {
-  "description": "QualiOS database package \u2014 PostgreSQL migrations (plain SQL), seed data, migrate/seed runners.",
-  "license": "UNLICENSED",
-  "name": "@qualios/db",
-  "private": true,
-  "scripts": {
-    "migrate": "tsx src/migrate.ts",
-    "seed": "tsx src/seed.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate": "node scripts/validate-migrations.mjs"
-  },
-  "version": "0.1.0",
   "dependencies": {
     "pg": "^8.23.1"
   },
+  "description": "QualiOS database package - PostgreSQL migrations (plain SQL), seed data, migrate/seed runners, audit-event hash chain.",
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15"
   },
-  "type": "module"
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "name": "@qualios/db",
+  "private": true,
+  "scripts": {
+    "audit:verify": "tsx src/verify-audit-chain.ts",
+    "build": "tsc -p tsconfig.json",
+    "migrate": "tsx src/migrate.ts",
+    "prepare": "npm run build",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate": "node scripts/validate-migrations.mjs"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0"
 }
