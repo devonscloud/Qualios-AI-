@@ -4,7 +4,7 @@
 
 QualiOS AI is an AI-assisted operating system for regulated manufacturing and quality-intensive businesses — quality management, production, compliance, training, auditing, document control, traceability, excise/tax administration, reporting, and a grounded AI assistant in one connected system.
 
-The first industry pack is **Canadian cannabis**, and the first wedge is **inventory/batch reconciliation + excise**, dogfooded on Herba Farms Ltd. before it is sold to any other licensed producer.
+The first industry pack is **Canadian cannabis**, and the first wedge is **inventory/batch reconciliation + excise**. QualiOS is a quality-assurance app — software and website — for sale to all Canadian licensed producers. Herba Farms Ltd. is the pilot customer where the wedge is proven first.
 
 > **Name note:** "QualiOS" is one letter off Qualio, an existing funded compliance company in the same conceptual space. Trademark clearance is required before any public use of the name. See the planning docs.
 
