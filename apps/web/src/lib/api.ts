@@ -67,6 +67,61 @@ export interface AuditEvent {
   seq: number;
 }
 
+export interface ImportRun {
+  id: string;
+  import_kind: string;
+  import_mode: string;
+  file_name: string;
+  status: string;
+  rows_total: number;
+  rows_accepted: number;
+  rows_rejected: number;
+  mapping: Record<string, string>;
+  error: string | null;
+  created_at: string;
+}
+
+export interface ReconciliationSummary {
+  reconciliation_id: string;
+  status: string;
+  lines_compared: number;
+  matches: number;
+  variances: number;
+  missing_source: number;
+  discrepancies_total: number;
+  discrepancies_open: number;
+}
+
+export interface ReconciliationLine {
+  id: string;
+  lot_number: string | null;
+  match_status: string;
+  seed_to_sale_qty_mg: number | null;
+  seed_to_sale_qty_units: number | null;
+  paper_record_qty_mg: number | null;
+  paper_record_qty_units: number | null;
+  allocated_qty_mg: number | null;
+  allocated_qty_units: number | null;
+  produced_qty_mg: number | null;
+  produced_qty_units: number | null;
+  variance_mg: number | null;
+  variance_units: number | null;
+}
+
+export interface Discrepancy {
+  id: string;
+  reconciliation_id: string | null;
+  lot_number: string | null;
+  discrepancy_type: string;
+  severity: string;
+  description: string;
+  quantity_mg: number | null;
+  quantity_units: number | null;
+  status: string;
+  resolution_note: string | null;
+  evidence: Record<string, unknown>;
+}
+
 export class ApiCallError extends Error {
   readonly status: number;
   readonly code: string;

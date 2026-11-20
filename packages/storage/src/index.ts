@@ -11,8 +11,10 @@ import { dirname, resolve, sep } from "node:path";
  * configured root directory. It must never be used for real customer data
  * beyond local development.
  *
- * Key scheme (enforced by buildStorageKey): every key is tenant-scoped —
+ * Key scheme (enforced by buildStorageKey / buildImportStorageKey): every key
+ * is tenant-scoped —
  *   orgs/{organizationId}/[sites/{siteId}/]documents/{documentId}/v{version}/{safeFileName}
+ *   orgs/{organizationId}/[sites/{siteId}/]imports/{importRunId}/{safeFileName}
  * Keys never contain `..` and never escape the storage root. The storage
  * layer does not know about users or permissions; the API enforces tenant
  * scoping before calling it (ADR-008 layer 1), and keys are validated here
@@ -60,9 +62,39 @@ export function buildStorageKey(options: {
 /** Validate that a key is a well-formed tenant-scoped key (no escapes). */
 export function isValidStorageKey(key: string): boolean {
   if (key.includes("..") || key.startsWith("/") || key.includes("\\")) return false;
-  const pattern =
-    /^orgs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(sites\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/)?documents\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/v[1-9][0-9]*\/[^/]+$/i;
-  return pattern.test(key);
+  const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  const orgPart = `orgs/${uuid}`;
+  const sitePart = `(sites/${uuid}/)?`;
+  const documentKey = new RegExp(
+    `^${orgPart}/${sitePart}documents/${uuid}/v[1-9][0-9]*/[^/]+$`,
+    "i",
+  );
+  // Import files live under imports/{importRunId}/{file} (no version part:
+  // an import file is immutable once stored; a re-import is a new run).
+  const importKey = new RegExp(`^${orgPart}/${sitePart}imports/${uuid}/[^/]+$`, "i");
+  return documentKey.test(key) || importKey.test(key);
+}
+
+/**
+ * Build a tenant-scoped storage key for an uploaded import file.
+ * Same guarantees as buildStorageKey: the key cannot escape the tenant.
+ */
+export function buildImportStorageKey(options: {
+  organizationId: string;
+  siteId: string | null;
+  importRunId: string;
+  fileName: string;
+}): string {
+  const { organizationId, siteId, importRunId, fileName } = options;
+  if (!UUID_RE.test(organizationId)) {
+    throw new Error("buildImportStorageKey: invalid organizationId");
+  }
+  if (siteId !== null && !UUID_RE.test(siteId)) {
+    throw new Error("buildImportStorageKey: invalid siteId");
+  }
+  if (!UUID_RE.test(importRunId)) throw new Error("buildImportStorageKey: invalid importRunId");
+  const sitePart = siteId === null ? "" : `sites/${siteId}/`;
+  return `orgs/${organizationId}/${sitePart}imports/${importRunId}/${sanitizeFileName(fileName)}`;
 }
 
 export class LocalFilesystemStorage implements ObjectStorage {

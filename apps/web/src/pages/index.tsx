@@ -25,6 +25,12 @@ export default function Home() {
         <li>
           <Link href="/documents/review">Review queue</Link>
         </li>
+        <li>
+          <Link href="/reconciliations">Reconciliation runs</Link>
+        </li>
+        <li>
+          <Link href="/reconciliations/new">Run a new reconciliation</Link>
+        </li>
       </ul>
     </main>
   );

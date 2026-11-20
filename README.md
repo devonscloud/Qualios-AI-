@@ -1,6 +1,6 @@
 # QualiOS AI
 
-**Status: SCAFFOLD + DOCUMENTS (v0.1.0, 20 November 2026). Nothing described here is a finished product. The monorepo structure, login/tenant scaffolding, database migrations, and the document upload → version → review → audit flow (sprint Days 12–14) exist; the reconciliation engine, OCR, AI assistant, and excise engine are not built yet.**
+**Status: SCAFFOLD + DOCUMENTS + RECONCILIATION (v0.1.0, 20 November 2026). Nothing described here is a finished product. The monorepo structure, login/tenant scaffolding, database migrations, the document upload → version → review → audit flow (sprint Days 12–14), and the seed-to-sale import → movement ledger → reconciliation engine → discrepancy workflow (sprint Days 14–18) exist; OCR, the AI assistant, and the excise engine are not built yet.**
 
 QualiOS AI is an AI-assisted operating system for regulated manufacturing and quality-intensive businesses — quality management, production, compliance, training, auditing, document control, traceability, excise/tax administration, reporting, and a grounded AI assistant in one connected system.
 
@@ -32,8 +32,8 @@ Architecture decisions (from the ADR):
 ## Repo layout (blueprint §14)
 
 ```
-apps/web                      Next.js app — login + tenant/site selection (UI only), document upload + review queue + document detail
-apps/api                      TypeScript Node.js API — health + tenant middleware + document/audit routes (real) + wedge route stubs
+apps/web                      Next.js app — login + tenant/site selection (UI only), document upload + review queue + document detail, reconciliation runs (list / new / detail)
+apps/api                      TypeScript Node.js API — health + tenant middleware + document/audit routes (real) + import, reconciliation, and discrepancy routes (real) + excise route stub
 workers/document-processing   Async job worker (STUB — OCR/AI review land here later)
 packages/db                   PostgreSQL migrations (plain SQL) + seed data + migrate runner + audit-event hash chain
 packages/storage              Object storage abstraction (S3-shaped interface; local filesystem backend real, S3 not wired)
@@ -81,8 +81,8 @@ npm run dev:web
 ```bash
 npm run lint        # ESLint across the monorepo
 npm run typecheck   # TypeScript across all workspaces
-npm test            # Vitest — API smoke tests + document flow integration tests
-                    # (document tests need DATABASE_URL; without it they skip)
+npm test            # Vitest — API smoke tests + document flow + import/reconciliation integration tests
+                    # (DB-backed tests need DATABASE_URL; without it they skip)
 npm run validate --workspace=packages/db   # static migration checks
 npm run audit:verify --workspace=packages/db   # recompute the audit hash chain (DATABASE_URL required)
 npm run build:api   # Compile apps/api
@@ -91,23 +91,27 @@ npm run build:web   # Next.js production build of apps/web
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests, migration apply against a real PostgreSQL service, and the API build on every push/PR to `main`.
 
-## What is real vs stub (Days 7–12 scope, plus Days 12–14 documents)
+## What is real vs stub (Days 7–12 scope, plus Days 12–14 documents, plus Days 14–18 reconciliation)
 
-| Area                                                       | State                                                                              |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Monorepo layout, workspaces, lint/test/CI                  | Real                                                                               |
-| `apps/web` login + tenant/site selection pages             | Real UI, no backend wiring                                                         |
-| `apps/web` document upload, review queue, document detail  | Real — calls the API (demo tenant/user headers)                                    |
-| `apps/api` health endpoint, tenant middleware, route stubs | Real (middleware is a STUB: no token verification yet)                             |
-| `apps/api` document routes (upload, versions, review)      | Real — multipart upload, file validation, tenant-scoped queries, audit events      |
-| `apps/api` audit-event read routes                         | Real — list + single event, tenant-scoped                                          |
-| `packages/db` migrations for all wedge entities            | Real SQL, applied + verified against PostgreSQL                                    |
-| `packages/db` audit hash chain + verify command            | Real — append-only triggers, per-org hash chain, `npm run audit:verify`            |
-| `packages/db` seed data                                    | Real — synthetic demo tenant only (now two demo users: Ops uploader + QA approver) |
-| `packages/storage` local filesystem backend                | Real — tenant-scoped keys, dev only                                                |
-| `packages/storage` S3 backend                              | Not wired — factory throws (ADR-005)                                               |
-| Auth provider, MFA, RBAC enforcement                       | STUB — provider not selected (ADR-011)                                             |
-| OCR, AI assistant, excise engine, billing, listings        | Not built — later sprint steps                                                     |
+| Area                                                       | State                                                                                                                     |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo layout, workspaces, lint/test/CI                  | Real                                                                                                                      |
+| `apps/web` login + tenant/site selection pages             | Real UI, no backend wiring                                                                                                |
+| `apps/web` document upload, review queue, document detail  | Real — calls the API (demo tenant/user headers)                                                                           |
+| `apps/web` reconciliation runs (list / new / detail)       | Real — calls the API (demo tenant/user headers); new-run page uploads + runs                                              |
+| `apps/api` health endpoint, tenant middleware, route stubs | Real (middleware is a STUB: no token verification yet)                                                                    |
+| `apps/api` document routes (upload, versions, review)      | Real — multipart upload, file validation, tenant-scoped queries, audit events                                             |
+| `apps/api` audit-event read routes                         | Real — list + single event, tenant-scoped                                                                                 |
+| `apps/api` import routes (CSV/XLSX, mapping, row log)      | Real — SNAPSHOT vs LEDGER modes, rejected rows recorded, never silently dropped                                           |
+| `apps/api` reconciliation engine v0                        | Real — scope LOT/PRODUCT/SITE/DATE_RANGE; PHANTOM_STOCK, SHORTAGE, LOT_MISMATCH, UNALLOCATED_PRODUCTION, BULK_VS_PACKAGED |
+| `apps/api` discrepancy workflow                            | Real — propose (note) → approve by a second person (RESOLVED or EXPLAINED); no auto-resolution                            |
+| `packages/db` migrations for all wedge entities            | Real SQL, applied + verified against PostgreSQL (9 migrations, incl. 0009 imports)                                        |
+| `packages/db` audit hash chain + verify command            | Real — append-only triggers, per-org hash chain, `npm run audit:verify`                                                   |
+| `packages/db` seed data                                    | Real — synthetic demo tenant only (now two demo users: Ops uploader + QA approver)                                        |
+| `packages/storage` local filesystem backend                | Real — tenant-scoped keys, dev only (documents + import files)                                                            |
+| `packages/storage` S3 backend                              | Not wired — factory throws (ADR-005)                                                                                      |
+| Auth provider, MFA, RBAC enforcement                       | STUB — provider not selected (ADR-011)                                                                                    |
+| OCR, AI assistant, excise engine, billing, listings        | Not built — later sprint steps                                                                                            |
 
 **Honest limits to know about:**
 

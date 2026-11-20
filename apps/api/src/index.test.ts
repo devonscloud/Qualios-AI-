@@ -47,20 +47,22 @@ describe("qualios-api smoke tests (Days 7–12 scaffold)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /api/reconciliations with tenant context returns 501 (stub, not implemented)", async () => {
+  it("GET /api/reconciliations with tenant context returns a list (implemented Days 14–18)", async () => {
     const res = await fetch(`${baseUrl}/api/reconciliations`, {
       headers: { "x-organization-id": ORG_ID },
     });
-    expect(res.status).toBe(501);
-    const body = (await res.json()) as { error: { code: string } };
-    expect(body.error.code).toBe("NOT_IMPLEMENTED");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { reconciliations: unknown[] };
+    expect(Array.isArray(body.reconciliations)).toBe(true);
   });
 
-  it("GET /api/discrepancies with tenant context returns 501 (stub)", async () => {
+  it("GET /api/discrepancies with tenant context returns a list (implemented Days 14–18)", async () => {
     const res = await fetch(`${baseUrl}/api/discrepancies`, {
       headers: { "x-organization-id": ORG_ID },
     });
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { discrepancies: unknown[] };
+    expect(Array.isArray(body.discrepancies)).toBe(true);
   });
 
   it("POST /api/excise/calculate with tenant context returns 501 (stub)", async () => {

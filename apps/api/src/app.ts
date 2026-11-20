@@ -5,6 +5,7 @@ import { tenantMiddleware } from "./middleware/tenant.js";
 import { healthRouter } from "./routes/health.js";
 import { auditRouter } from "./routes/audit.js";
 import { documentsRouter } from "./routes/documents.js";
+import { importsRouter } from "./routes/imports.js";
 import { reconciliationsRouter } from "./routes/reconciliations.js";
 import { discrepanciesRouter } from "./routes/discrepancies.js";
 import { exciseRouter } from "./routes/excise.js";
@@ -20,6 +21,7 @@ export function createApp(): Express {
   // Everything under /api requires tenant context (STUB middleware for now).
   app.use("/api", tenantMiddleware);
   app.use("/api/documents", documentsRouter);
+  app.use("/api/imports", importsRouter);
   app.use("/api/audit-events", auditRouter);
   app.use("/api/reconciliations", reconciliationsRouter);
   app.use("/api/discrepancies", discrepanciesRouter);

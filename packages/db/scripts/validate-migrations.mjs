@@ -61,6 +61,17 @@ const EXPECTED = {
     policies: 0,
     allowDropTypeInUp: true,
   },
+  // 0009 adds the import run/row tables (2 policies). Its ALTER TABLE
+  // additions to reconciliations / reconciliation_lines / discrepancies are
+  // not CREATE statements, so they are not listed in `creates`. The
+  // discrepancy_status enum gains EXPLAINED via ALTER TYPE ... ADD VALUE —
+  // safe here because no statement in this migration uses the new value
+  // (it cannot be used until after this migration's transaction commits).
+  "0009_imports.sql": {
+    creates: ["import_runs", "import_rows"],
+    policies: 2,
+    contains: ["ALTER TYPE discrepancy_status ADD VALUE IF NOT EXISTS 'EXPLAINED'"],
+  },
 };
 
 let failures = 0;
@@ -94,6 +105,9 @@ for (const file of readdirSync(dir)
     if (!re.test(up)) fail(file, `UP section does not CREATE ${name}`);
     const dropRe = new RegExp(`DROP\\s+(TABLE|VIEW)\\s+IF\\s+EXISTS\\s+${name}\\b`, "i");
     if (!dropRe.test(down)) fail(file, `DOWN section does not DROP ${name}`);
+  }
+  for (const snippet of expected.contains ?? []) {
+    if (!up.includes(snippet)) fail(file, `UP section does not contain: ${snippet}`);
   }
   const policyCount = (up.match(/CREATE POLICY/g) ?? []).length;
   if (policyCount !== expected.policies) {
