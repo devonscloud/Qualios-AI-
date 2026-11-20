@@ -49,13 +49,24 @@ describe.skipIf(!hasDb)("pack gate + traceability + ledger (DB-backed)", () => {
     pool = new Pool({ connectionString: DATABASE_URL });
 
     // A second food lot, produced from the seeded FS-1001 lot.
-    childLotId = randomUUID();
-    await pool.query(
+    // Re-run safe: (organization_id, lot_number) is unique, so a second run
+    // against the same database must not re-insert FS-1002.
+    const insertedLot = await pool.query<{ id: string }>(
       `INSERT INTO lots (id, organization_id, product_id, lot_number, status, approved_for_sale)
        VALUES ($1, $2, $3, 'FS-1002', 'ACTIVE', true)
-       ON CONFLICT (id) DO NOTHING`,
-      [childLotId, FOOD_ORG, FOOD_PRODUCT],
+       ON CONFLICT (organization_id, lot_number) DO NOTHING
+       RETURNING id`,
+      [randomUUID(), FOOD_ORG, FOOD_PRODUCT],
     );
+    if (insertedLot.rows.length > 0) {
+      childLotId = insertedLot.rows[0].id;
+    } else {
+      const existingLot = await pool.query<{ id: string }>(
+        `SELECT id FROM lots WHERE organization_id = $1 AND lot_number = 'FS-1002'`,
+        [FOOD_ORG],
+      );
+      childLotId = existingLot.rows[0].id;
+    }
 
     // A minimal chart of accounts for the food tenant.
     const accounts = await pool.query<{ id: string; code: string }>(

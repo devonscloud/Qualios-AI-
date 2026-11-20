@@ -51,12 +51,12 @@ Clerk bills **monthly retained users (MRU)** — a user who returns at least one
 
 ### Clerk — clerk.com/pricing
 
-| Plan | Price | Included | Notes |
-| --- | --- | --- | --- |
-| Hobby (Free) | $0 | 50,000 MRU per app; 100 monthly retained orgs (MROs), up to 20 members each | No MFA, no passkeys, no branding removal, 1-day log retention |
-| Pro | $25/mo ($20/mo billed annually) | 50,000 MRU; 1 enterprise SSO connection | MFA, passkeys, custom sessions, white-labelling |
-| Business | $300/mo ($250/mo annual) | Same MRU allotment as Pro | 10 dashboard seats, priority support, 30-day log retention, SOC 2 report access, admin audit trail |
-| Enterprise | Custom, annual only — **not publicly listed** | Negotiated | 99.99% uptime SLA, HIPAA BAA, volume discounting |
+| Plan         | Price                                         | Included                                                                    | Notes                                                                                              |
+| ------------ | --------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Hobby (Free) | $0                                            | 50,000 MRU per app; 100 monthly retained orgs (MROs), up to 20 members each | No MFA, no passkeys, no branding removal, 1-day log retention                                      |
+| Pro          | $25/mo ($20/mo billed annually)               | 50,000 MRU; 1 enterprise SSO connection                                     | MFA, passkeys, custom sessions, white-labelling                                                    |
+| Business     | $300/mo ($250/mo annual)                      | Same MRU allotment as Pro                                                   | 10 dashboard seats, priority support, 30-day log retention, SOC 2 report access, admin audit trail |
+| Enterprise   | Custom, annual only — **not publicly listed** | Negotiated                                                                  | 99.99% uptime SLA, HIPAA BAA, volume discounting                                                   |
 
 - Overage above 50,000 MRU: $0.02/MRU (50,001–100,000), $0.018 (100,001–1,000,000), $0.015 (1,000,001–10,000,000), $0.012 (10,000,000+).
 - Organisations: first 100 MROs included on every plan; overage $1.00/MRO (101–1,000), $0.90 (1,001–10,000), $0.75 (10,001–100,000), $0.60 (100,001+). Overage billing requires the B2B Authentication add-on.
@@ -68,12 +68,12 @@ Clerk bills **monthly retained users (MRU)** — a user who returns at least one
 
 Auth0 sells B2C and B2B variants of the paid plans. Prices below are the lowest published tier (500 MAU), monthly billing. Auth0 prices in **discrete MAU tiers, not a per-MAU rate**; usage between tiers is billed at the next tier up.
 
-| Plan | B2C price | B2B price | Notes |
-| --- | --- | --- | --- |
-| Free | $0 — up to 25,000 MAU | — | 5 orgs, 1 enterprise connection, self-service SSO, SCIM; no Pro MFA factors, no role management |
-| Essentials | $35/mo (500 MAU) | $150/mo (500 MAU) | Pro MFA, RBAC per org, log streaming, standard support; B2C: 10 orgs, **no** enterprise connections; B2B: unlimited orgs, 3 enterprise connections, SCIM |
-| Professional | $240/mo (500 MAU) | $800/mo (500 MAU) | Enterprise MFA, enhanced attack protection, custom DB connections; B2B: 5 enterprise connections |
-| Enterprise | **Custom — not publicly listed** | **Custom — not publicly listed** | 99.99% SLA, custom user & SSO tiers, enterprise rate limits, HIPAA/BAA add-on, private deployment add-on |
+| Plan         | B2C price                        | B2B price                        | Notes                                                                                                                                                    |
+| ------------ | -------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Free         | $0 — up to 25,000 MAU            | —                                | 5 orgs, 1 enterprise connection, self-service SSO, SCIM; no Pro MFA factors, no role management                                                          |
+| Essentials   | $35/mo (500 MAU)                 | $150/mo (500 MAU)                | Pro MFA, RBAC per org, log streaming, standard support; B2C: 10 orgs, **no** enterprise connections; B2B: unlimited orgs, 3 enterprise connections, SCIM |
+| Professional | $240/mo (500 MAU)                | $800/mo (500 MAU)                | Enterprise MFA, enhanced attack protection, custom DB connections; B2B: 5 enterprise connections                                                         |
+| Enterprise   | **Custom — not publicly listed** | **Custom — not publicly listed** | 99.99% SLA, custom user & SSO tiers, enterprise rate limits, HIPAA/BAA add-on, private deployment add-on                                                 |
 
 - MAU tier ladder (published): 500 / 1,000 / 2,500 / 5,000 / 7,500 / 10,000 / 20,000 / 30,000+. B2C Essentials: $70 @1,000 MAU, $350 @5,000, $700 @10,000, $3,500 @50,000 (self-serve ceiling; 100,000 MAU = contact sales). B2B Essentials: $300 @1,000, $1,300 @5,000, $2,100 @10,000, $3,800 @20,000; B2B Professional $1,500 @5,000, $2,400 @10,000. Past 30,000 MAU, paid B2B and Professional plans show "Get in touch" instead of a price.
 - Extra enterprise connections on B2B: $100/mo each, capped at 30 total on self-serve plans.
@@ -82,12 +82,12 @@ Auth0 sells B2C and B2B variants of the paid plans. Prices below are the lowest 
 
 ### Supabase Auth — supabase.com/pricing (bundled with the Supabase platform)
 
-| Plan | Price | Included MAU | Notes |
-| --- | --- | --- | --- |
-| Free | $0 | 50,000 | 500 MB DB, 2 active projects, project pauses after 7 days idle, 1-hour audit log, no SAML SSO, no custom domain, no SLA |
-| Pro | $25/mo + usage | 100,000, then $0.00325/MAU | 8 GB DB per project, 100 GB storage, daily backups kept 7 days, $10/mo compute credit, email support |
-| Team | $599/mo + usage | 100,000, then $0.00325/MAU | Pro limits + SOC 2 Type II / ISO 27001, dashboard SSO/SAML, 14-day backups, priority support with SLAs; HIPAA available as paid add-on |
-| Enterprise | **Custom — not publicly listed** | Custom | Dedicated support, BYO cloud, uptime SLAs, custom data residency |
+| Plan       | Price                            | Included MAU               | Notes                                                                                                                                  |
+| ---------- | -------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Free       | $0                               | 50,000                     | 500 MB DB, 2 active projects, project pauses after 7 days idle, 1-hour audit log, no SAML SSO, no custom domain, no SLA                |
+| Pro        | $25/mo + usage                   | 100,000, then $0.00325/MAU | 8 GB DB per project, 100 GB storage, daily backups kept 7 days, $10/mo compute credit, email support                                   |
+| Team       | $599/mo + usage                  | 100,000, then $0.00325/MAU | Pro limits + SOC 2 Type II / ISO 27001, dashboard SSO/SAML, 14-day backups, priority support with SLAs; HIPAA available as paid add-on |
+| Enterprise | **Custom — not publicly listed** | Custom                     | Dedicated support, BYO cloud, uptime SLAs, custom data residency                                                                       |
 
 - SAML 2.0 SSO: paid plans only; 50 SSO MAU included, then **$0.015 per SSO MAU**. No SCIM.
 - MFA: TOTP (authenticator apps) included; phone/SMS MFA is a paid add-on ($75/mo first project, $10/mo each further project). Leaked-password protection is a paid feature.
@@ -96,12 +96,12 @@ Auth0 sells B2C and B2B variants of the paid plans. Prices below are the lowest 
 
 ### Firebase Authentication / Google Cloud Identity Platform
 
-| Item | Price |
-| --- | --- |
-| Spark plan (no-cost) | $0; email/social/anonymous sign-in free to 50,000 MAU; no phone sign-in; Identity Platform upgrade capped at 3,000 daily active users |
-| Blaze plan (pay-as-you-go) | $0 base fee; first 50,000 MAU free, then Tier 1 (email/social/phone/anonymous) $0.0055/MAU (50,001–100,000), $0.0046 (100,001–1,000,000), $0.0032 (1,000,001–10,000,000), $0.0025 (10,000,000+) |
-| Tier 2 (SAML / OIDC) | First 50 MAU free, then **$0.015/MAU**; requires Identity Platform upgrade |
-| SMS (phone sign-in / SMS MFA) | Per SMS sent, by country: US/Canada $0.01; first 10 SMS/day free; requires Blaze |
+| Item                          | Price                                                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spark plan (no-cost)          | $0; email/social/anonymous sign-in free to 50,000 MAU; no phone sign-in; Identity Platform upgrade capped at 3,000 daily active users                                                           |
+| Blaze plan (pay-as-you-go)    | $0 base fee; first 50,000 MAU free, then Tier 1 (email/social/phone/anonymous) $0.0055/MAU (50,001–100,000), $0.0046 (100,001–1,000,000), $0.0032 (1,000,001–10,000,000), $0.0025 (10,000,000+) |
+| Tier 2 (SAML / OIDC)          | First 50 MAU free, then **$0.015/MAU**; requires Identity Platform upgrade                                                                                                                      |
+| SMS (phone sign-in / SMS MFA) | Per SMS sent, by country: US/Canada $0.01; first 10 SMS/day free; requires Blaze                                                                                                                |
 
 - The Identity Platform upgrade itself has no price tag — it unlocks MFA, blocking functions, SAML/OIDC and multi-tenancy, and usage is then billed at the rates above.
 - Multi-tenancy (tenants = isolated user silos in one project) is included in the upgrade at no additional cost. There is **no native Organisations / B2B model** — no org roles, invites or org switching.
@@ -111,11 +111,11 @@ Auth0 sells B2C and B2B variants of the paid plans. Prices below are the lowest 
 
 User pools are billed per MAU on one of three feature tiers, chosen per pool. New pools start on Essentials.
 
-| Tier | Free tier | Price above free tier |
-| --- | --- | --- |
-| Lite | 10,000 MAU | $0.0055/MAU (10,001–100,000), $0.0046 (100,001–1,000,000), $0.00325 (1,000,001–10,000,000), $0.0025 (10,000,000+) |
-| Essentials | 10,000 MAU | **$0.015/MAU flat** |
-| Plus | None | **$0.020/MAU flat** |
+| Tier       | Free tier  | Price above free tier                                                                                             |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| Lite       | 10,000 MAU | $0.0055/MAU (10,001–100,000), $0.0046 (100,001–1,000,000), $0.00325 (1,000,001–10,000,000), $0.0025 (10,000,000+) |
+| Essentials | 10,000 MAU | **$0.015/MAU flat**                                                                                               |
+| Plus       | None       | **$0.020/MAU flat**                                                                                               |
 
 - SAML 2.0 / OIDC federated users are priced separately on every tier: first 50 MAU free, then **$0.015/MAU**.
 - Lite: password/social/SAML-OIDC sign-in, MFA (SMS or authenticator apps), Lambda triggers. Essentials adds managed login with visual editor, passwordless/passkeys, email MFA, access-token customisation, refresh-token rotation. Plus adds threat protection (adaptive auth, compromised-credential detection) and **exportable user activity logs**.
@@ -126,13 +126,13 @@ User pools are billed per MAU on one of three feature tiers, chosen per pool. Ne
 
 Assumptions: startup = 1 org, 10 users, all active/retained. Scale = 100 orgs, 5,000 users, all active/retained. SSO users at scale assumed 500 (10% of users via customer IdPs) where a per-SSO-user meter applies. SMS MFA cost excluded (TOTP is free everywhere it is offered); if SMS MFA were used for all 5,000 users once a month, add ≈ $50/mo on Clerk/Firebase.
 
-| Provider | Startup (1 org, ~10 users) | Scale (100 orgs, ~5,000 users) | 100,000-user reference |
-| --- | --- | --- | --- |
-| **Clerk** | **$25/mo** (Pro; Hobby $0 has no MFA) | **$125/mo** — Pro $25 + B2B Enhanced add-on $100 (custom roles, unlimited members/org, org-linked SSO). 5,000 MRU and 100 orgs both inside included allotments | $1,025/mo Pro ($25 + 50,000 × $0.02) |
-| **Auth0** | **$35/mo** (B2C Essentials @500 MAU — Pro MFA + RBAC per org; Free $0 has no Pro MFA/roles. B2B Essentials $150/mo if SSO/SCIM needed) | **$1,300/mo** (B2B Essentials @5,000 MAU — unlimited orgs, 3 connections). B2C Essentials is $350/mo but capped at **10 orgs**, so it fails the 100-org scenario | B2C Essentials $3,500/mo @50,000 (self-serve ceiling); 100,000 MAU = contact sales / Enterprise quote |
-| **Supabase Auth** | **$25/mo** (Pro; Free $0 but idle projects pause, 1-hour audit log, no SAML) — plus ≈$0 compute (Micro covered by $10 credit) | **≈$25/mo** (Pro; 5,000 MAU inside 100,000 included) + ≈$6.75/mo if 500 SSO users. Team $599/mo if SOC 2/ISO/HIPAA attestation is required | $25/mo Pro (100,000 included); 200,000 MAU ≈ $350/mo |
-| **Firebase Auth** | **$0/mo** (Blaze; 50,000 MAU free; MFA via Identity Platform) | **$0/mo** (5,000 MAU inside free tier) + ≈$6.75/mo if 500 SAML/OIDC users | $275/mo (50,000 × $0.0055) |
-| **AWS Cognito** | **$0/mo** (Essentials; 10,000 MAU free) | **$0/mo** (Essentials; 5,000 MAU inside free tier) + ≈$6.75/mo if 500 federated users. Plus tier (exportable logs, threat protection) would be $100/mo | Lite $495/mo; Essentials $1,350/mo; Plus $2,000/mo |
+| Provider          | Startup (1 org, ~10 users)                                                                                                             | Scale (100 orgs, ~5,000 users)                                                                                                                                   | 100,000-user reference                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Clerk**         | **$25/mo** (Pro; Hobby $0 has no MFA)                                                                                                  | **$125/mo** — Pro $25 + B2B Enhanced add-on $100 (custom roles, unlimited members/org, org-linked SSO). 5,000 MRU and 100 orgs both inside included allotments   | $1,025/mo Pro ($25 + 50,000 × $0.02)                                                                  |
+| **Auth0**         | **$35/mo** (B2C Essentials @500 MAU — Pro MFA + RBAC per org; Free $0 has no Pro MFA/roles. B2B Essentials $150/mo if SSO/SCIM needed) | **$1,300/mo** (B2B Essentials @5,000 MAU — unlimited orgs, 3 connections). B2C Essentials is $350/mo but capped at **10 orgs**, so it fails the 100-org scenario | B2C Essentials $3,500/mo @50,000 (self-serve ceiling); 100,000 MAU = contact sales / Enterprise quote |
+| **Supabase Auth** | **$25/mo** (Pro; Free $0 but idle projects pause, 1-hour audit log, no SAML) — plus ≈$0 compute (Micro covered by $10 credit)          | **≈$25/mo** (Pro; 5,000 MAU inside 100,000 included) + ≈$6.75/mo if 500 SSO users. Team $599/mo if SOC 2/ISO/HIPAA attestation is required                       | $25/mo Pro (100,000 included); 200,000 MAU ≈ $350/mo                                                  |
+| **Firebase Auth** | **$0/mo** (Blaze; 50,000 MAU free; MFA via Identity Platform)                                                                          | **$0/mo** (5,000 MAU inside free tier) + ≈$6.75/mo if 500 SAML/OIDC users                                                                                        | $275/mo (50,000 × $0.0055)                                                                            |
+| **AWS Cognito**   | **$0/mo** (Essentials; 10,000 MAU free)                                                                                                | **$0/mo** (Essentials; 5,000 MAU inside free tier) + ≈$6.75/mo if 500 federated users. Plus tier (exportable logs, threat protection) would be $100/mo           | Lite $495/mo; Essentials $1,350/mo; Plus $2,000/mo                                                    |
 
 Reading: at QualiOS's real scales, Clerk costs $25 → $125/mo; Auth0 is 10× Clerk at the 100-org scale ($1,300 vs $125) because its B2B pricing is per-MAU-tiered; Supabase, Firebase and Cognito are near-free on metered auth — but all three lack the B2B organisation layer, so the saving is paid for in engineering time building it (see below).
 
@@ -208,26 +208,26 @@ Reading: at QualiOS's real scales, Clerk costs $25 → $125/mo; Auth0 is 10× Cl
 
 ## Comparison matrix
 
-| Criterion | Clerk | Auth0 | Supabase Auth | Firebase Auth | Cognito |
-| --- | --- | --- | --- | --- | --- |
-| Native organisations / multi-tenancy | Yes — best in class | Yes | No (build on RLS) | Tenants only, no orgs | No (groups / pool per tenant) |
-| Per-tenant roles & permissions | Base roles incl.; custom roles need $100/mo add-on | Yes, RBAC per org (Essentials+) | No — custom | No — custom | No — custom (groups) |
-| Invites | Native | Native | Custom | Custom | Custom |
-| MFA enforced per org | App-wide toggle native; per-org = code check | Yes (policies/Actions) | Dashboard members only; end-users = custom | Custom (per-tenant config + code) | Custom (per-pool/group + code) |
-| SSO / SAML | 1 incl. on Pro; $75/mo extra (2–15) | B2B: 3 incl. Essentials; $100/mo extra | $0.015/SSO MAU after 50 | $0.015/MAU after 50 | $0.015/MAU after 50 |
-| SCIM | Included free per connection | Included (Free/B2B) | No | No | No |
-| Audit logs | 1d/7d/30d by plan; admin trail Business-only | 1d/5d/10d/30d; streaming from Essentials | 1h Free; longer on paid | Cloud Logging | Plus tier for exportable logs |
-| SLA | 99.99% Enterprise only | 99.99% Enterprise only | Enterprise only | Via Google Cloud support | AWS service SLA |
-| Data residency | **US only** | US/EU/UK/JP/AU/CA | Per-project region choice | US only (verify) | Per-region pools |
-| SOC 2 Type 2 | Yes (report Business+) | Yes | Team+ ($599/mo) | Yes (Google Cloud) | Yes (AWS) |
-| ISO 27001 | No own cert ("via cloud providers") | Yes | Team+ ($599/mo) | Yes (Google Cloud) | Yes |
-| HIPAA BAA | Enterprise only | Enterprise add-on | Team+ paid add-on | Via Google Cloud BAA (verify scope) | Yes (AWS BAA) |
-| DPA | Public | Available | Available | Google Cloud DPA | AWS DPA |
-| Next.js / TS SDK | Best — `@clerk/nextjs`, prebuilt UI | Mature — `@auth0/nextjs-auth0` | JS client; no B2B UI | Admin SDK; no B2B UI | AWS SDKs; no B2B UI |
-| Cost: startup (1 org, 10 users) | $25/mo | $35/mo (B2C Ess.) | $25/mo | $0/mo | $0/mo |
-| Cost: scale (100 orgs, 5,000 users) | **$125/mo** | **$1,300/mo** (B2B Ess.) | ≈$25/mo | $0/mo | $0/mo |
-| Cost: 100,000 users | $1,025/mo | $3,500/mo @50k; 100k = quote | $25/mo | $275/mo | $495–$2,000/mo |
-| Lock-in / exit | User export all plans; password hashes not exportable | Export via API; hash export support-assisted | Users in own Postgres; GoTrue self-host exit | Hash export via Admin SDK | Export via API; hashes not exportable |
+| Criterion                            | Clerk                                                 | Auth0                                        | Supabase Auth                                | Firebase Auth                       | Cognito                               |
+| ------------------------------------ | ----------------------------------------------------- | -------------------------------------------- | -------------------------------------------- | ----------------------------------- | ------------------------------------- |
+| Native organisations / multi-tenancy | Yes — best in class                                   | Yes                                          | No (build on RLS)                            | Tenants only, no orgs               | No (groups / pool per tenant)         |
+| Per-tenant roles & permissions       | Base roles incl.; custom roles need $100/mo add-on    | Yes, RBAC per org (Essentials+)              | No — custom                                  | No — custom                         | No — custom (groups)                  |
+| Invites                              | Native                                                | Native                                       | Custom                                       | Custom                              | Custom                                |
+| MFA enforced per org                 | App-wide toggle native; per-org = code check          | Yes (policies/Actions)                       | Dashboard members only; end-users = custom   | Custom (per-tenant config + code)   | Custom (per-pool/group + code)        |
+| SSO / SAML                           | 1 incl. on Pro; $75/mo extra (2–15)                   | B2B: 3 incl. Essentials; $100/mo extra       | $0.015/SSO MAU after 50                      | $0.015/MAU after 50                 | $0.015/MAU after 50                   |
+| SCIM                                 | Included free per connection                          | Included (Free/B2B)                          | No                                           | No                                  | No                                    |
+| Audit logs                           | 1d/7d/30d by plan; admin trail Business-only          | 1d/5d/10d/30d; streaming from Essentials     | 1h Free; longer on paid                      | Cloud Logging                       | Plus tier for exportable logs         |
+| SLA                                  | 99.99% Enterprise only                                | 99.99% Enterprise only                       | Enterprise only                              | Via Google Cloud support            | AWS service SLA                       |
+| Data residency                       | **US only**                                           | US/EU/UK/JP/AU/CA                            | Per-project region choice                    | US only (verify)                    | Per-region pools                      |
+| SOC 2 Type 2                         | Yes (report Business+)                                | Yes                                          | Team+ ($599/mo)                              | Yes (Google Cloud)                  | Yes (AWS)                             |
+| ISO 27001                            | No own cert ("via cloud providers")                   | Yes                                          | Team+ ($599/mo)                              | Yes (Google Cloud)                  | Yes                                   |
+| HIPAA BAA                            | Enterprise only                                       | Enterprise add-on                            | Team+ paid add-on                            | Via Google Cloud BAA (verify scope) | Yes (AWS BAA)                         |
+| DPA                                  | Public                                                | Available                                    | Available                                    | Google Cloud DPA                    | AWS DPA                               |
+| Next.js / TS SDK                     | Best — `@clerk/nextjs`, prebuilt UI                   | Mature — `@auth0/nextjs-auth0`               | JS client; no B2B UI                         | Admin SDK; no B2B UI                | AWS SDKs; no B2B UI                   |
+| Cost: startup (1 org, 10 users)      | $25/mo                                                | $35/mo (B2C Ess.)                            | $25/mo                                       | $0/mo                               | $0/mo                                 |
+| Cost: scale (100 orgs, 5,000 users)  | **$125/mo**                                           | **$1,300/mo** (B2B Ess.)                     | ≈$25/mo                                      | $0/mo                               | $0/mo                                 |
+| Cost: 100,000 users                  | $1,025/mo                                             | $3,500/mo @50k; 100k = quote                 | $25/mo                                       | $275/mo                             | $495–$2,000/mo                        |
+| Lock-in / exit                       | User export all plans; password hashes not exportable | Export via API; hash export support-assisted | Users in own Postgres; GoTrue self-host exit | Hash export via Admin SDK           | Export via API; hashes not exportable |
 
 ## Recommendation
 
@@ -287,4 +287,4 @@ Estimated implementation work once the above is provided (for planning, not comm
 
 ---
 
-*Prepared 20 Nov 2026 by Worker B (auth provider evaluation). Prices verified against vendor pricing pages and docs as cited; Enterprise tiers are unpublished by all five vendors and are stated as such. No account was created and no keys exist.*
+_Prepared 20 Nov 2026 by Worker B (auth provider evaluation). Prices verified against vendor pricing pages and docs as cited; Enterprise tiers are unpublished by all five vendors and are stated as such. No account was created and no keys exist._
