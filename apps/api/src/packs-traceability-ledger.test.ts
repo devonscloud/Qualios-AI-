@@ -22,10 +22,16 @@ const hasDb = Boolean(DATABASE_URL);
 
 const HERBA_ORG = "11111111-1111-4111-8111-111111111111";
 const HERBA_OPS = "11111111-1111-4111-8111-111111111119";
+const HERBA_SITE = "11111111-1111-4111-8111-111111111112";
+const HERBA_LOCATION = "11111111-1111-4111-8111-111111111118";
+const HERBA_PRODUCT = "11111111-1111-4111-8111-111111111116";
 const FOOD_ORG = "22222222-2222-4222-8222-222222222222";
 const FOOD_QA = "22222222-2222-4222-8222-222222222224";
+const FOOD_SITE = "22222222-2222-4222-8222-222222222223";
+const FOOD_LOCATION = "22222222-2222-4222-8222-222222222229";
 const FOOD_PRODUCT = "22222222-2222-4222-8222-222222222227";
 const FOOD_LOT_PARENT = "22222222-2222-4222-8222-222222222228";
+const P1_RUN = randomUUID().slice(0, 8);
 
 function headers(orgId: string, userId: string): Record<string, string> {
   return { "x-organization-id": orgId, "x-user-id": userId };
@@ -266,6 +272,416 @@ describe.skipIf(!hasDb)("pack gate + traceability + ledger (DB-backed)", () => {
       headers: headers(HERBA_ORG, HERBA_OPS),
     });
     expect(otherTenant.status).toBe(404);
+  });
+
+  /**
+   * Run the full P1 traceability chain over HTTP for one tenant and return
+   * the ids, positions, traces, and consistency checks. Lot numbers are
+   * run-scoped (P1_RUN), so consecutive runs against the same database
+   * never collide with an earlier run's lots.
+   */
+  async function runTraceChain(args: {
+    orgId: string;
+    userId: string;
+    productId: string;
+    siteId: string;
+    locationId: string;
+    tag: string;
+  }): Promise<{
+    rawLotId: string;
+    rawLotNumber: string;
+    finishedLotId: string;
+    shipmentLotId: string;
+    batchId: string;
+    batch: { status: string };
+    positions: { rawMg: number; finishedMg: number; shipmentMg: number };
+    backwardLotNumbers: string[];
+    forwardLotNumbers: string[];
+    traceCheck: {
+      raw: { consistent: boolean };
+      finished: { consistent: boolean };
+      shipment: { consistent: boolean };
+    };
+  }> {
+    const { orgId, userId, productId, siteId, locationId, tag } = args;
+    const auth = { ...headers(orgId, userId), "content-type": "application/json" };
+    const post = async (path: string, body: unknown): Promise<Response> =>
+      fetch(`${baseUrl}${path}`, {
+        body: JSON.stringify(body),
+        headers: auth,
+        method: "POST",
+      });
+    const rawLotNumber = `${tag}-RAW`;
+    const finLotNumber = `${tag}-FIN`;
+    const shipLotNumber = `${tag}-SHIP`;
+
+    const received = await post("/api/v1/traceability/receive", {
+      location_id: locationId,
+      lot_number: rawLotNumber,
+      product_id: productId,
+      quantity_mg: 10000,
+      quantity_units: 100,
+    });
+    expect(received.status).toBe(201);
+    const receivedBody = (await received.json()) as {
+      lot: { id: string; lot_number: string };
+      movement: { movement_type: string; quantity_mg: number };
+    };
+    expect(receivedBody.movement.movement_type).toBe("RECEIVE");
+    const rawLotId = receivedBody.lot.id;
+
+    const batch = await post("/api/v1/traceability/batches", {
+      inputs: [{ lot_id: rawLotId, quantity_mg: 4000, quantity_units: 40 }],
+      output_lot_number: finLotNumber,
+      output_product_id: productId,
+      planned_quantity_mg: 4000,
+      site_id: siteId,
+    });
+    expect(batch.status).toBe(201);
+    const batchBody = (await batch.json()) as {
+      batch: { id: string; status: string };
+      outputLot: { id: string };
+      links: { link_type: string }[];
+    };
+    expect(batchBody.batch.status).toBe("PLANNED");
+    expect(batchBody.links).toHaveLength(1);
+    expect(batchBody.links[0].link_type).toBe("CONSUMED_IN");
+    const finishedLotId = batchBody.outputLot.id;
+
+    const completed = await post(`/api/v1/traceability/batches/${batchBody.batch.id}/complete`, {
+      location_id: locationId,
+      produced_quantity_mg: 4000,
+      produced_quantity_units: 40,
+    });
+    expect(completed.status).toBe(200);
+    const completedBody = (await completed.json()) as {
+      batch: { status: string };
+      movements: { movement_type: string; quantity_mg: number }[];
+      outputLot: { approved_for_sale: boolean };
+    };
+    expect(completedBody.batch.status).toBe("COMPLETED");
+    expect(completedBody.outputLot.approved_for_sale).toBe(true);
+    expect(
+      completedBody.movements.map((m) => `${m.movement_type}:${m.quantity_mg}`).sort(),
+    ).toEqual(["CONSUME:-4000", "PRODUCE:4000"]);
+
+    const shipped = await post("/api/v1/traceability/ship", {
+      location_id: locationId,
+      lot_id: finishedLotId,
+      quantity_mg: 1000,
+      quantity_units: 10,
+      shipment_lot_number: shipLotNumber,
+      shipment_reference: `SHIP-${tag}`,
+    });
+    expect(shipped.status).toBe(201);
+    const shippedBody = (await shipped.json()) as {
+      shipmentLot: { id: string };
+      link: { link_type: string };
+      movements: { movement_type: string; quantity_mg: number }[];
+    };
+    expect(shippedBody.link.link_type).toBe("SHIPPED_AS");
+    const shipmentLotId = shippedBody.shipmentLot.id;
+
+    const positionOf = async (lotId: string): Promise<number> => {
+      const res = await fetch(`${baseUrl}/api/v1/traceability/lots/${lotId}/positions`, {
+        headers: headers(orgId, userId),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { position: { quantityMg: number } };
+      return body.position.quantityMg;
+    };
+    const traceOf = async (lotId: string, direction: "backward" | "forward"): Promise<string[]> => {
+      const res = await fetch(`${baseUrl}/api/v1/traceability/lots/${lotId}/${direction}`, {
+        headers: headers(orgId, userId),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { nodes: { lotNumber: string; depth: number }[] };
+      return body.nodes.sort((a, b) => a.depth - b.depth).map((node) => node.lotNumber);
+    };
+    const checkOf = async (lotId: string): Promise<{ consistent: boolean }> => {
+      const res = await fetch(`${baseUrl}/api/v1/traceability/lots/${lotId}/trace-check`, {
+        headers: headers(orgId, userId),
+      });
+      expect(res.status).toBe(200);
+      return (await res.json()) as { consistent: boolean };
+    };
+    return {
+      backwardLotNumbers: await traceOf(shipmentLotId, "backward"),
+      batch: completedBody.batch,
+      batchId: batchBody.batch.id,
+      finishedLotId,
+      forwardLotNumbers: await traceOf(rawLotId, "forward"),
+      positions: {
+        finishedMg: await positionOf(finishedLotId),
+        rawMg: await positionOf(rawLotId),
+        shipmentMg: await positionOf(shipmentLotId),
+      },
+      rawLotId,
+      rawLotNumber,
+      shipmentLotId,
+      traceCheck: {
+        finished: await checkOf(finishedLotId),
+        raw: await checkOf(rawLotId),
+        shipment: await checkOf(shipmentLotId),
+      },
+    };
+  }
+
+  it("traceability POC: receive -> batch -> finish -> ship on the Herba tenant", async () => {
+    const chain = await runTraceChain({
+      locationId: HERBA_LOCATION,
+      orgId: HERBA_ORG,
+      productId: HERBA_PRODUCT,
+      siteId: HERBA_SITE,
+      tag: `HF-${P1_RUN}`,
+      userId: HERBA_OPS,
+    });
+    expect(chain.rawLotNumber).toBe(`HF-${P1_RUN}-RAW`);
+    expect(chain.batch.status).toBe("COMPLETED");
+    expect(chain.positions.rawMg).toBe(6000);
+    expect(chain.positions.finishedMg).toBe(3000);
+    expect(chain.positions.shipmentMg).toBe(1000);
+    expect(chain.traceCheck.finished.consistent).toBe(true);
+    expect(chain.traceCheck.raw.consistent).toBe(true);
+    expect(chain.traceCheck.shipment.consistent).toBe(true);
+    // Recall-style backward trace from the shipped lot reaches the source.
+    // Backward trace lists depth 0 first: the shipped lot, then the
+    // finished lot, then the source lot.
+    expect(chain.backwardLotNumbers).toEqual([
+      `HF-${P1_RUN}-SHIP`,
+      `HF-${P1_RUN}-FIN`,
+      `HF-${P1_RUN}-RAW`,
+    ]);
+    expect(chain.forwardLotNumbers).toEqual([
+      `HF-${P1_RUN}-RAW`,
+      `HF-${P1_RUN}-FIN`,
+      `HF-${P1_RUN}-SHIP`,
+    ]);
+    // Shipping more than the ledger holds is refused; completing twice is refused.
+    const overship = await fetch(`${baseUrl}/api/v1/traceability/ship`, {
+      body: JSON.stringify({
+        lot_id: chain.finishedLotId,
+        location_id: HERBA_LOCATION,
+        quantity_mg: 999999,
+        quantity_units: 10,
+        shipment_lot_number: `HF-${P1_RUN}-SHIP2`,
+      }),
+      headers: { ...headers(HERBA_ORG, HERBA_OPS), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(overship.status).toBe(409);
+    const overshipBody = (await overship.json()) as { error: { code: string } };
+    expect(overshipBody.error.code).toBe("INSUFFICIENT_STOCK");
+    const reComplete = await fetch(
+      `${baseUrl}/api/v1/traceability/batches/${chain.batchId}/complete`,
+      {
+        body: JSON.stringify({
+          location_id: HERBA_LOCATION,
+          produced_quantity_mg: 4000,
+          produced_quantity_units: 40,
+        }),
+        headers: { ...headers(HERBA_ORG, HERBA_OPS), "content-type": "application/json" },
+        method: "POST",
+      },
+    );
+    expect(reComplete.status).toBe(409);
+  });
+
+  it("traceability POC: the same generic chain runs on the food tenant", async () => {
+    const chain = await runTraceChain({
+      locationId: FOOD_LOCATION,
+      orgId: FOOD_ORG,
+      productId: FOOD_PRODUCT,
+      siteId: FOOD_SITE,
+      tag: `PF-${P1_RUN}`,
+      userId: FOOD_QA,
+    });
+    expect(chain.positions.rawMg).toBe(6000);
+    expect(chain.positions.finishedMg).toBe(3000);
+    expect(chain.positions.shipmentMg).toBe(1000);
+    expect(chain.traceCheck.finished.consistent).toBe(true);
+    expect(chain.backwardLotNumbers).toEqual([
+      `PF-${P1_RUN}-SHIP`,
+      `PF-${P1_RUN}-FIN`,
+      `PF-${P1_RUN}-RAW`,
+    ]);
+    // The food tenant's chain is invisible to Herba (tenant isolation).
+    const otherTenant = await fetch(
+      `${baseUrl}/api/v1/traceability/lots/${chain.shipmentLotId}/backward`,
+      { headers: headers(HERBA_ORG, HERBA_OPS) },
+    );
+    expect(otherTenant.status).toBe(404);
+  });
+
+  it("finance routes: a balanced entry posts, replays idempotently, unbalanced is refused", async () => {
+    const chartRes = await fetch(`${baseUrl}/api/v1/finance/accounts/ensure-chart`, {
+      headers: { ...headers(FOOD_ORG, FOOD_QA), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(chartRes.status).toBe(200);
+    const accountsBody = (await fetch(`${baseUrl}/api/v1/finance/accounts`, {
+      headers: headers(FOOD_ORG, FOOD_QA),
+    }).then((res) => res.json())) as {
+      accounts: { id: string; code: string }[];
+    };
+    const byCode = new Map(accountsBody.accounts.map((account) => [account.code, account.id]));
+    const inventoryId = byCode.get("1200") as string;
+    const payablesId = byCode.get("2000") as string;
+    expect(inventoryId).toBeTruthy();
+    expect(payablesId).toBeTruthy();
+
+    const sourceId = randomUUID();
+    const entryBody = {
+      entry_date: "2026-11-20",
+      lines: [
+        { account_id: inventoryId, credit_cents: 0, debit_cents: 10000 },
+        { account_id: payablesId, credit_cents: 10000, debit_cents: 0 },
+      ],
+      memo: "Supplier receipt, route test",
+      source_id: sourceId,
+      source_module: "finance",
+      source_type: "supplier_receipt",
+    };
+    const first = await fetch(`${baseUrl}/api/v1/finance/journal-entries`, {
+      body: JSON.stringify(entryBody),
+      headers: { ...headers(FOOD_ORG, FOOD_QA), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as {
+      duplicate: boolean;
+      entry: { id: string; status: string; lines: unknown[] };
+    };
+    expect(firstBody.duplicate).toBe(false);
+    expect(firstBody.entry.status).toBe("POSTED");
+    expect(firstBody.entry.lines).toHaveLength(2);
+
+    const replay = await fetch(`${baseUrl}/api/v1/finance/journal-entries`, {
+      body: JSON.stringify(entryBody),
+      headers: { ...headers(FOOD_ORG, FOOD_QA), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(replay.status).toBe(200);
+    const replayBody = (await replay.json()) as {
+      duplicate: boolean;
+      entry: { id: string };
+    };
+    expect(replayBody.duplicate).toBe(true);
+    expect(replayBody.entry.id).toBe(firstBody.entry.id);
+
+    const unbalanced = await fetch(`${baseUrl}/api/v1/finance/journal-entries`, {
+      body: JSON.stringify({
+        ...entryBody,
+        lines: [
+          { account_id: inventoryId, credit_cents: 0, debit_cents: 10000 },
+          { account_id: payablesId, credit_cents: 9999, debit_cents: 0 },
+        ],
+        source_id: randomUUID(),
+      }),
+      headers: { ...headers(FOOD_ORG, FOOD_QA), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(unbalanced.status).toBe(400);
+    const unbalancedBody = (await unbalanced.json()) as { error: { code: string } };
+    expect(unbalancedBody.error.code).toBe("UNBALANCED_ENTRY");
+
+    const unknownAccount = await fetch(`${baseUrl}/api/v1/finance/journal-entries`, {
+      body: JSON.stringify({
+        ...entryBody,
+        lines: [
+          { account_id: randomUUID(), credit_cents: 0, debit_cents: 10000 },
+          { account_id: payablesId, credit_cents: 10000, debit_cents: 0 },
+        ],
+        source_id: randomUUID(),
+      }),
+      headers: { ...headers(FOOD_ORG, FOOD_QA), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(unknownAccount.status).toBe(404);
+  });
+
+  it("finance flow: supplier receipt -> consumption/COGS -> sale/AR moves valuation and AP/AR", async () => {
+    await fetch(`${baseUrl}/api/v1/finance/accounts/ensure-chart`, {
+      headers: { ...headers(HERBA_ORG, HERBA_OPS), "content-type": "application/json" },
+      method: "POST",
+    });
+    const readBalances = async (): Promise<Map<string, { debit: number; credit: number }>> => {
+      const res = await fetch(`${baseUrl}/api/v1/finance/accounts`, {
+        headers: headers(HERBA_ORG, HERBA_OPS),
+      });
+      const body = (await res.json()) as {
+        accounts: { code: string; debitTotalCents: number; creditTotalCents: number }[];
+      };
+      return new Map(
+        body.accounts.map((account) => [
+          account.code,
+          { credit: account.creditTotalCents, debit: account.debitTotalCents },
+        ]),
+      );
+    };
+    const before = await readBalances();
+    const flowBody = {
+      entry_date: "2026-11-20",
+      lot_id: "11111111-1111-4111-8111-111111111117",
+      product_id: HERBA_PRODUCT,
+      receipt: { amount_cents: 20000, source_id: randomUUID(), unit_cost_cents: 200 },
+      consumption: { amount_cents: 8000, source_id: randomUUID() },
+      sale: { amount_cents: 30000, source_id: randomUUID() },
+    };
+    const first = await fetch(`${baseUrl}/api/v1/finance/flows/supplier-to-sale`, {
+      body: JSON.stringify(flowBody),
+      headers: { ...headers(HERBA_ORG, HERBA_OPS), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as {
+      receipt: { status: string; duplicate: boolean };
+      consumption: { status: string; duplicate: boolean };
+      sale: { status: string; duplicate: boolean };
+      valuations: { totalCents: number }[];
+    };
+    expect(firstBody.receipt.status).toBe("POSTED");
+    expect(firstBody.consumption.status).toBe("POSTED");
+    expect(firstBody.sale.status).toBe("POSTED");
+    expect(firstBody.receipt.duplicate).toBe(false);
+    // Valuation moves with the steps: receipt sets 20000, consumption leaves 12000.
+    expect(firstBody.valuations.map((v) => v.totalCents)).toEqual([20000, 12000]);
+    const valuationsRes = await fetch(
+      `${baseUrl}/api/v1/finance/inventory-valuations?lot_id=11111111-1111-4111-8111-111111111117`,
+      { headers: headers(HERBA_ORG, HERBA_OPS) },
+    );
+    expect(valuationsRes.status).toBe(200);
+    const valuationsBody = (await valuationsRes.json()) as {
+      valuations: { totalCents: number }[];
+    };
+    expect(valuationsBody.valuations.map((v) => v.totalCents)).toContain(12000);
+    // AP/AR/inventory balances match the postings (deltas, so re-runs stay green).
+    const after = await readBalances();
+    const delta = (code: string, side: "debit" | "credit"): number =>
+      (after.get(code)?.[side] ?? 0) - (before.get(code)?.[side] ?? 0);
+    expect(delta("2000", "credit")).toBe(20000); // AP: supplier invoice
+    expect(delta("1200", "debit") - delta("1200", "credit")).toBe(12000); // Inventory net
+    expect(delta("1100", "debit")).toBe(30000); // AR: sales invoice
+    expect(delta("4000", "credit")).toBe(30000); // Revenue
+    expect(delta("5000", "debit")).toBe(8000); // COGS
+    // Replaying the whole flow returns the originals and moves nothing.
+    const replay = await fetch(`${baseUrl}/api/v1/finance/flows/supplier-to-sale`, {
+      body: JSON.stringify(flowBody),
+      headers: { ...headers(HERBA_ORG, HERBA_OPS), "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(replay.status).toBe(200);
+    const replayBody = (await replay.json()) as {
+      receipt: { duplicate: boolean };
+      consumption: { duplicate: boolean };
+      sale: { duplicate: boolean };
+    };
+    expect(replayBody.receipt.duplicate).toBe(true);
+    expect(replayBody.consumption.duplicate).toBe(true);
+    expect(replayBody.sale.duplicate).toBe(true);
+    const afterReplay = await readBalances();
+    expect(afterReplay.get("2000")?.credit).toBe(after.get("2000")?.credit);
+    expect(afterReplay.get("1100")?.debit).toBe(after.get("1100")?.debit);
   });
 
   it("ledger: a balanced entry posts, and replaying its source returns the original", async () => {

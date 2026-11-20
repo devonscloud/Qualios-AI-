@@ -6,11 +6,14 @@ import { tenantMiddleware } from "./middleware/tenant.js";
 import { healthRouter } from "./routes/health.js";
 import { auditRouter } from "./routes/audit.js";
 import { documentsRouter } from "./routes/documents.js";
+import { financeRouter } from "./routes/finance.js";
 import { importsRouter } from "./routes/imports.js";
 import { packsRouter } from "./routes/packs.js";
 import { reconciliationsRouter } from "./routes/reconciliations.js";
 import { discrepanciesRouter } from "./routes/discrepancies.js";
 import { exciseRouter } from "./routes/excise.js";
+import { registrationRouter } from "./routes/registration.js";
+import { taxRouter } from "./routes/tax.js";
 import { traceabilityRouter } from "./routes/traceability.js";
 import { trainingRouter } from "./routes/training.js";
 
@@ -22,11 +25,21 @@ export function createApp(): Express {
   // Public: liveness only, no tenant context.
   app.use("/health", healthRouter);
 
+  // Registration is public too: a company that does not exist yet has no
+  // tenant context to send. (It answers 501 AUTH_NOT_CONFIGURED until
+  // Clerk is configured; see routes/registration.ts.)
+  app.use("/api/v1/registration", registrationRouter);
+
   // Everything under /api requires tenant context (STUB middleware for now).
   app.use("/api", tenantMiddleware);
   app.use("/api/documents", documentsRouter);
   app.use("/api/packs", packsRouter);
   app.use("/api/traceability", traceabilityRouter);
+  // Versioned contract (domain model §4): the same traceability router
+  // under /api/v1; finance, tax, and registration land versioned only.
+  app.use("/api/v1/traceability", traceabilityRouter);
+  app.use("/api/v1/finance", financeRouter);
+  app.use("/api/v1/tax", taxRouter);
   // Cannabis-pack surfaces, mounted on the core and gated by the tenant's
   // enabled packs (B-110, leak 8). A tenant without the cannabis pack
   // gets 403 PACK_NOT_ENABLED, not a silent pass-through.

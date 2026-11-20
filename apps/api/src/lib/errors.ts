@@ -33,3 +33,7 @@ export function notFound(code: string, message: string): ApiError {
 export function conflict(code: string, message: string): ApiError {
   return new ApiError(409, code, message);
 }
+
+export function notImplemented(code: string, message: string): ApiError {
+  return new ApiError(501, code, message);
+}

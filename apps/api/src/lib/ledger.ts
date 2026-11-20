@@ -24,6 +24,73 @@ export interface PostedJournalEntry {
   duplicate: boolean;
 }
 
+export interface JournalEntryWithLines {
+  id: string;
+  organizationId: string;
+  entryDate: string;
+  sourceModule: string;
+  sourceType: string;
+  sourceId: string | null;
+  idempotencyKey: string;
+  memo: string | null;
+  status: string;
+  postedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  lines: {
+    id: string;
+    accountId: string;
+    debitCents: number;
+    creditCents: number;
+    lotId: string | null;
+    productId: string | null;
+    memo: string | null;
+  }[];
+}
+
+/** Read one posted entry with its lines (tenant-scoped). Returns null when absent. */
+export async function getJournalEntry(
+  client: PoolClient,
+  args: { organizationId: string; entryId: string },
+): Promise<JournalEntryWithLines | null> {
+  const { rows } = await client.query(
+    `SELECT id, organization_id, entry_date, source_module, source_type, source_id,
+            idempotency_key, memo, status, posted_at, created_by, created_at
+     FROM journal_entries WHERE id = $1 AND organization_id = $2`,
+    [args.entryId, args.organizationId],
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const lines = await client.query(
+    `SELECT id, account_id, debit_cents, credit_cents, lot_id, product_id, memo
+     FROM journal_lines WHERE journal_entry_id = $1 ORDER BY created_at ASC, id ASC`,
+    [args.entryId],
+  );
+  return {
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    entryDate: row.entry_date,
+    id: row.id,
+    idempotencyKey: row.idempotency_key,
+    lines: lines.rows.map((line) => ({
+      accountId: line.account_id,
+      creditCents: Number(line.credit_cents),
+      debitCents: Number(line.debit_cents),
+      id: line.id,
+      lotId: line.lot_id,
+      memo: line.memo,
+      productId: line.product_id,
+    })),
+    memo: row.memo,
+    organizationId: row.organization_id,
+    postedAt: row.posted_at,
+    sourceId: row.source_id,
+    sourceModule: row.source_module,
+    sourceType: row.source_type,
+    status: row.status,
+  };
+}
+
 export async function postJournalEntry(
   client: PoolClient,
   args: {
