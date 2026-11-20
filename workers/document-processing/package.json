@@ -1,0 +1,16 @@
+{
+  "description": "QualiOS document-processing worker \u2014 async jobs for OCR, AI review, imports (STUB).",
+  "license": "UNLICENSED",
+  "name": "@qualios/document-processing-worker",
+  "private": true,
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  },
+  "type": "module"
+}

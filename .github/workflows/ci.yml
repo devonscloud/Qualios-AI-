@@ -1,0 +1,62 @@
+# QualiOS CI
+#
+# Runs on every push and pull request to main: install, lint, typecheck, test.
+# Migration checks run against a real PostgreSQL service container so the
+# wedge schema is verified, not just reviewed.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: qualios
+          POSTGRES_PASSWORD: qualios
+          POSTGRES_DB: qualios_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qualios -d qualios_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://qualios:qualios@localhost:5432/qualios_test
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Apply database migrations (test database)
+        run: npm run db:migrate
+
+      - name: Build API
+        run: npm run build:api

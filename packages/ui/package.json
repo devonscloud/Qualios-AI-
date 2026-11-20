@@ -1,0 +1,16 @@
+{
+  "description": "QualiOS shared UI components (scaffold — one Button so far).",
+  "license": "UNLICENSED",
+  "name": "@qualios/ui",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "dependencies": {
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}

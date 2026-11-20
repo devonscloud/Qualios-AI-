@@ -1,0 +1,13 @@
+{
+  "description": "QualiOS versioned rule types — excise rules as configuration (STUB).",
+  "license": "UNLICENSED",
+  "name": "@qualios/rules",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

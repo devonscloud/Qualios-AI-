@@ -1,0 +1,13 @@
+{
+  "description": "QualiOS industry packs — first pack: Canadian cannabis (STUB).",
+  "license": "UNLICENSED",
+  "name": "@qualios/industry-packs",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

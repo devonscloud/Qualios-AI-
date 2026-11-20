@@ -1,0 +1,28 @@
+# Local development infrastructure (scaffold)
+#
+# Usage:
+#   docker compose -f infra/docker-compose.yml up -d db
+#   DATABASE_URL=postgres://qualios:qualios@localhost:5432/qualios_dev npm run db:migrate
+#
+# These are LOCAL DEV credentials only. Never use them for staging or production.
+# Staging/production infrastructure is a later phase (blueprint §8, Phase 3).
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: qualios
+      POSTGRES_PASSWORD: qualios
+      POSTGRES_DB: qualios_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - qualios_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qualios -d qualios_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  qualios_pgdata:

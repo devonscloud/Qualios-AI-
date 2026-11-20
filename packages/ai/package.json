@@ -1,0 +1,13 @@
+{
+  "description": "QualiOS AI provider abstraction — model gateway, prompts, evaluation (STUB: provider not selected, ADR-007).",
+  "license": "UNLICENSED",
+  "name": "@qualios/ai",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

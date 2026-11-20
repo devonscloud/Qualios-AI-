@@ -1,0 +1,22 @@
+{
+  "description": "QualiOS database package \u2014 PostgreSQL migrations (plain SQL), seed data, migrate/seed runners.",
+  "license": "UNLICENSED",
+  "name": "@qualios/db",
+  "private": true,
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate": "node scripts/validate-migrations.mjs"
+  },
+  "version": "0.1.0",
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  },
+  "type": "module"
+}

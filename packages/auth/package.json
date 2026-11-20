@@ -1,0 +1,13 @@
+{
+  "description": "QualiOS auth package — tenant context, roles, permissions (STUB: provider not selected, ADR-011).",
+  "license": "UNLICENSED",
+  "name": "@qualios/auth",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

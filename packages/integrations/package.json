@@ -1,0 +1,13 @@
+{
+  "description": "QualiOS external system connectors — file import first, live APIs later (STUB).",
+  "license": "UNLICENSED",
+  "name": "@qualios/integrations",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
