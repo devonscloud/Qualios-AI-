@@ -1,8 +1,8 @@
 # QualiOS AI — Security
 
-**Version:** 1.0 (new plan) — 20 November 2026
+**Version:** 1.1 (directive revision) — 20 November 2026
 **Status:** Planning and standing rules. This document states the security posture, the threats, and what is and is not yet protected. It is not a compliance guarantee and nothing here is legal advice.
-**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026 (§7, §8).
+**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026 (§7, §8), as corrected and expanded by the ChatGPT "Master Product Correction & Build Directive" (20 Nov 2026). This revision adds threats T-13–T-16 for the directive's new scope (double-entry ledger, tax filings, CRM/customer data, assistant tool use) and the assistant/finance control requirements from directive §5/§7. Nothing new here is built — the controls are specified so the first finance, tax, CRM, or assistant increment ships with them, not after them.
 **Carries forward:** `QualiOS-Threat-Model.md` (12 threats T-01–T-12, NIST AI RMF / OWASP LLM mappings) and the standing rules from `docs/compliance/README.md`. The threat model was written for the wedge; the threats below are restated for the universal platform — the threat names and severities are carried forward, the scope is widened.
 **Audit:** `QualiOS-Current-State-Audit-2026-11-20.md`.
 
@@ -77,6 +77,26 @@ _Residual risk:_ total for any deployed data. Backups + restore drills are a Pha
 _Controls (process):_ honesty rules in §1; excise rules require expert review; no "certified/fully compliant" language.
 _Residual risk:_ marketing copy (Phase 1 public site) is where this risk materializes. Every claim on the public site must trace to a tested feature; testimonials must be genuine; regulatory mappings require qualified review, dated source references, change tracking, and jurisdiction-specific applicability (blueprint §8). Mappings are pack content: a cannabis mapping never applies to a food tenant, and no pack's rules are treated as universal.
 
+### T-13 — Ledger tampering / unbalanced or duplicate posting (NEW — directive finance module)
+
+_Controls (designed, not built):_ balanced-entry enforcement at the database layer (a journal entry cannot post unless debits equal credits); posted entries immutable (UPDATE/DELETE blocked by trigger; corrections are reversing entries); idempotency keys on every posting endpoint (a retried post returns the original entry); every posting writes an audit event in the same transaction; balances derived from posted lines, never stored or edited.
+_Residual risk:_ the GL does not exist yet, so the controls are untested. **Gate:** the first finance increment (B-702 prototype) must ship with the balance trigger, the immutability trigger, and an idempotency test (double-post attempt books once) — a ledger without these is not shippable even as a prototype.
+
+### T-14 — False tax filing / unreviewed tax rule (NEW — directive tax module)
+
+_Controls (designed, not built):_ tax rules are versioned configuration requiring domain-expert review before use; calculations record the exact rule version used; calculations are `DRAFT` until a human approval event finalizes them; filing packages are preparation records only — QualiOS never files, and `FILED_EXTERNALLY` is set only by the human who filed.
+_Residual risk:_ a wrong rule version silently produces a wrong working paper. **Gate:** no tax pack ships without qualified review of its rules, dated source references, and jurisdiction-specific applicability (blueprint §8); the excise routes stay 501 until then.
+
+### T-15 — Customer / CRM data exposure (NEW — directive business-administration module)
+
+_Controls (designed, not built):_ CRM entities carry `organization_id` and RLS like every tenant table; customer portals are separate, scoped access (a portal user sees only their own customer's records); no CRM data in AI retrieval unless the caller is authorized for that customer.
+_Residual risk:_ CRM does not exist yet. **Gate:** portal access must be tested like tenant isolation (a portal user for customer A cannot see customer B) before any portal ships.
+
+### T-16 — Assistant tool misuse / unauthorized consequential action (NEW — directive §5)
+
+_Controls (designed, not built):_ tool allowlist with four permission tiers (read / draft / propose / execute); the assistant's permissions are the intersection of the user's, the role's, and the plan's entitlements; consequential actions (financial transactions, regulated releases, signatures, filings) require explicit human approval recorded as an `approvals` row + audit event; no tool posts a correction, files anything, releases a batch, or signs on a person's behalf; every tool call is logged (`assistant_tool_calls`) with inputs, outputs, and the human decision; evaluation sets (tool misuse, hallucination, prompt injection) must pass before the assistant is shown to any customer.
+_Residual risk:_ no AI exists yet, so the controls are untested by definition. **Gate:** the read-only assistant (B-301) ships before any action tool (B-306), and B-306 does not ship without the approval-gate tests passing.
+
 ## 3. Security program (target, blueprint §8)
 
 - Threat modeling (this document, updated per phase), penetration testing before commercial release, vulnerability management, access reviews, audit logs, customer security documentation.
@@ -103,3 +123,4 @@ _Residual risk:_ marketing copy (Phase 1 public site) is where this risk materia
 - No dependency scanning, no SBOM.
 - No DPA, no subprocessor list, no retention/deletion implementation.
 - No AI, so no AI-specific defences exist yet — they must be built with the assistant, not after it.
+- **New scope, same rule:** no finance ledger, no tax filing path, no CRM, and no assistant tool exists yet — so T-13–T-16 have no code to attack and no code to defend. Each must ship with its controls in its first increment (balance/immutability/idempotency for the ledger; expert-reviewed rules and human-finalized working papers for tax; portal isolation tests for CRM; permission tiers, approval gates, and evaluation sets for the assistant). The directive's scope makes data residency (OD-9), DPA/subprocessor transparency, and retention/deletion load-bearing rather than optional — they gate the first assistant and finance increments, not the commercial launch.

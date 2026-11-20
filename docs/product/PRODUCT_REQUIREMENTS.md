@@ -1,8 +1,8 @@
 # QualiOS AI — Product Requirements
 
-**Version:** 1.0 (new plan) — 20 November 2026
+**Version:** 1.1 (directive revision) — 20 November 2026
 **Status:** Planning only. Nothing in this document is built unless the Current-State Audit says it is.
-**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026.
+**Governing plan:** Complete Master Blueprint v1.0, 20 November 2026, **as corrected and expanded by the ChatGPT "Master Product Correction & Build Directive" (20 Nov 2026, adopted by Devon)**. The directive is an expansion layer, not a replacement: where it conflicts with the blueprint's phase order, §9 of the audit records both orders and the decision is Devon's. Directive §9 deliverable (a): updated master PRD — all modules, personas, industries, user stories, acceptance criteria.
 **Supersedes:** `QualiOS-PRD-Cannabis-Inventory-Wedge.md` (v1.0 wedge PRD, goal workspace). That PRD described a cannabis-inventory wedge as the product; it is superseded. Requirements from it that are still true are carried forward below and marked **[carried forward]**; everything else is new or re-phased.
 **Audit:** `QualiOS-Current-State-Audit-2026-11-20.md` (goal workspace, `files/`).
 
@@ -27,15 +27,18 @@ QualiOS AI is a **commercial, multi-tenant, global AI-powered quality-assurance 
 
 ## 3. Personas
 
-| Persona                           | Needs                                                                                                                       |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Business owner / buyer            | Subscribe online, configure the company, see KPIs and cost drivers, trust the audit trail.                                  |
-| Company administrator             | Invite users, assign roles, manage facilities, subscriptions, and settings.                                                 |
-| QA manager / approver             | Approve SOPs and documents, assign training, verify completion, run audits, review CAPAs.                                   |
-| Employee / operator               | View current SOPs, complete training and assessments, follow step-by-step guidance, log incidents, capture records offline. |
-| Auditor (internal or external)    | Read-only, scoped access to records, evidence packs, and the audit trail.                                                   |
-| Finance / compliance lead         | Excise and tax working papers, obligation registers, filing preparation — never auto-filed.                                 |
-| Platform operator (QualiOS staff) | Admin console, support, billing operations, health and observability.                                                       |
+| Persona                                   | Needs                                                                                                                       |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Business owner / buyer                    | Subscribe online, configure the company, see KPIs and cost drivers, trust the audit trail.                                  |
+| Company administrator                     | Invite users, assign roles, manage facilities, subscriptions, and settings.                                                 |
+| QA manager / approver                     | Approve SOPs and documents, assign training, verify completion, run audits, review CAPAs.                                   |
+| Employee / operator                       | View current SOPs, complete training and assessments, follow step-by-step guidance, log incidents, capture records offline. |
+| Auditor (internal or external)            | Read-only, scoped access to records, evidence packs, and the audit trail.                                                   |
+| Finance / compliance lead                 | Excise and tax working papers, obligation registers, filing preparation — never auto-filed.                                 |
+| Production manager                        | Work orders, recipes/BOM, batch genealogy, yields, material availability, downtime — all linked to the traceability engine. |
+| Lab manager                               | Specifications, sampling, results, COAs, out-of-specification investigations, release recommendations.                      |
+| Sales / CRM user                          | Customers, opportunities, quotes, sales orders, contracts, customer portals.                                                |
+| Platform sales / operator (QualiOS staff) | Admin console, support, billing operations, health and observability.                                                       |
 
 ## 4. Functional requirements
 
@@ -108,6 +111,63 @@ QualiOS AI is a **commercial, multi-tenant, global AI-powered quality-assurance 
 - **FR-AN-06** — Service health, support ticketing, incident communications, onboarding checklists, status page, product feedback. _(Missing.)_
 - **FR-AN-07** — Optional human auditor marketplace/services (Phase 6). _(Missing.)_
 
+### 4.8 Operations — universal traceability engine (directive §3; P1 proof of concept, Phase 4 full)
+
+The traceability engine is the **unifying lifecycle**, not one module among many. One configurable, end-to-end chain links suppliers → purchasing → receiving → raw materials → inventory → cultivation/manufacturing/processing → inspections and lab tests → finished goods → packaging → warehousing → shipment → customer → sales, accounting and tax → recall. Industry lifecycle names are pack-configured labels on this one engine (cannabis: seed-to-sale; agriculture: seed-to-harvest-to-market; food: farm-to-table; meat: animal-to-processing-to-customer; pharma: ingredient-to-batch-to-distribution; alcohol: ingredient-to-bottle-to-sale; tobacco: leaf-to-product-to-sale; cosmetics: ingredient-to-batch-to-retail; industrial: raw material-to-finished assembly; automotive/aerospace: component-to-assembly-to-delivery; construction: procurement-to-installation; logistics: receipt-to-dispatch).
+
+- **FR-TRC-01** — Every stage records lot genealogy, quantity/unit conversions, ownership, location, timestamps, statuses, waste, yields, and complete audit history. _(Partial: the movement ledger and `batch_inputs` hold the raw material; no genealogy query, no stage records, no recall.)_
+- **FR-TRC-02** — Backward trace (given a finished lot, list every input lot, supplier, and test) and forward trace (given an input lot, list every finished lot, shipment, and customer) complete in one query, with no duplicate entry across modules — a record entered once is linked everywhere by shared IDs and events. _(Missing.)_
+- **FR-TRC-03** — Mock recall: select a lot, produce the full distribution list, and open a recall case with customer notification workflow. _(Missing.)_
+- **FR-TRC-04** — Proof of concept (P1, directive §8): receive a lot → consume it in a batch → finish goods → ship → trace backward/forward, connected to inventory reconciliation. _(Missing; the POC is backlog B-710.)_
+- **FR-OPS-01** — Production planning, work orders, recipes/BOM, batches, yield, warehouse, procurement, supplier qualification, shipping, returns, maintenance, calibration, sensors, and scanning. _(Batches/lots/inventory partial; everything else missing. Work orders, recipes, suppliers, maintenance, calibration, sensors, scanning have no entities at all.)_
+- **FR-OPS-02** — Offline mobile capture for operations (receiving, inspections, counts) with secure conflict resolution on sync. _(Missing; depends on mobile, Phase 5.)_
+
+### 4.9 Finance — double-entry general ledger (directive §4; NEW scope vs the blueprint)
+
+The blueprint's finance scope was master data, quotes, orders, invoicing, POs, costing, expenses, and integrations. The directive adds a **full double-entry GL as a QualiOS module**. This is the largest scope expansion in the directive (audit §9.11, E-1). Nothing in this section is built.
+
+- **FR-FIN-GL-01** — Chart of accounts per tenant (configurable, with pack-supplied templates); every financial event posts balanced double-entry journal entries (debits equal credits, enforced at the database layer). _(Missing.)_
+- **FR-FIN-GL-02** — AR/AP: customer invoices and supplier bills, payments and allocations, ageing. _(Missing.)_
+- **FR-FIN-GL-03** — Purchasing: purchase orders linked to receiving and to AP; bank reconciliation against statements/feeds. _(Missing.)_
+- **FR-FIN-GL-04** — Inventory valuation, COGS, and job/batch costing derived from the traceability engine's movements — cost follows the lot, so a batch's cost is computable from its inputs. _(Missing.)_
+- **FR-FIN-GL-05** — Budgets, P&L, balance sheet, cash flow; multi-currency with FX rates as versioned configuration. _(Missing.)_
+- **FR-FIN-GL-06** — Idempotent posting (a retried post never double-books), controlled adjustments (posted entries are never edited directly; corrections are reversing/adjusting entries), and a full audit trail on every posting. _(Missing; designed in DATA_MODEL §12.)_
+- **FR-FIN-GL-07** — Prototype (P1, directive §8): supplier receipt + invoice → inventory valuation/AP → production consumption/COGS → sales invoice/AR, with balanced entries. Labelled a prototype, not a production GL. _(Missing; backlog B-702.)_
+- **FR-FIN-GL-08** — Accounting/ERP integrations remain a separate, later item (blueprint §4); the GL does not depend on them. _(Missing.)_
+
+### 4.10 Tax — full module (directive §4; Phase 6 in the blueprint, P2 packs in the directive)
+
+- **FR-TAX-01** — GST/HST, VAT, and sales tax as versioned, jurisdiction-specific rules with effective dates — the same generic rule engine as excise, with pack-registered bases. _(Missing; only the excise schema exists.)_
+- **FR-TAX-02** — Industry-specific excise as working papers from expert-reviewed rules; per-mg-THC is the cannabis pack's basis, not the core's. _(Schema exists; routes return 501; no calculation has ever run.)_
+- **FR-TAX-03** — Tax reconciliation (tax collected/charged vs tax calculated vs tax filed), rate/rule versioning, filing schedules, evidence mapping, jurisdiction-specific exports. _(Missing.)_
+- **FR-TAX-04** — Qualified review before filings: rules are reviewed by a domain expert/accountant before use, and each filing package is reviewed by an authorized human before it is filed by that human. **QualiOS never auto-files.** _(Standing rule; no code.)_
+
+### 4.11 Business administration — CRM, sales, contracts (directive §4; NEW module vs the blueprint)
+
+- **FR-CRM-01** — CRM: customers, contacts, opportunities/pipeline, quotes, sales orders, contracts, customer portals. _(Missing; the blueprint had only customer/supplier master data.)_
+- **FR-CRM-02** — Approvals, tasks, reporting, analytics, multi-site and multi-entity operations. _(Approvals partial — document/training/discrepancy approvals exist; tasks, analytics, multi-entity missing; multi-site partial — sites table only.)_
+- **FR-CRM-03** — Sales orders link to the traceability engine (what was shipped, to whom, from which lots) and to the finance module (sales invoice → AR). No duplicate entry: an order entered once drives shipment, invoice, and traceability. _(Missing.)_
+
+### 4.12 Commercial platform (directive §4)
+
+- **FR-COM-01** — Public site: positioning, features, industry pages, demos (only genuine), testimonials (only genuine), pricing, trials, lead capture, sales, help center, policies, billing, contact. _(Missing; scaffold home page only.)_
+- **FR-COM-02** — Company signup, user invitations, support, plan entitlements, enterprise accounts, APIs, app distribution. _(Missing; internal API exists but there is no public API, no scoped tokens, no webhooks, no OpenAPI.)_
+- **FR-COM-03** — Pricing (blueprint §9: Starter $99 / Professional $299 / Business $799 / Enterprise custom CAD/mo) is an **unvalidated hypothesis** until willingness-to-pay and service costs are validated (decision OD-13). _(Missing.)_
+
+### 4.13 Personal AI assistant — full design summary (directive §5; design detail in the assistant design note)
+
+The assistant is a core cross-platform feature, not a chatbot. Every authorized user receives a role-aware assistant with an optional daily briefing. The full design (tools, permissions, retrieval, approval gates, citations, memory, privacy, evaluations) is specified in `docs/architecture/ARCHITECTURE.md` §6 and `docs/compliance/SECURITY.md` (T-03–T-05, T-16); the requirements here are the acceptance surface.
+
+- **FR-AI-10** — The assistant searches and cites authorized company documents and records; answers SOP questions, finds lots, analyzes production, reconciles inventory, identifies missing records, prepares audits and CAPAs, monitors training, reviews financial trends, tracks tax deadlines, drafts emails/reports, schedules tasks, and summarizes meetings. _(Missing — all of it.)_
+- **FR-AI-11** — Permission tiers: **read, draft, propose, execute** — separate and separately grantable. Execute-tier tools that move money, release product, sign, or file require explicit human approval (ADR-012); "execute" means permission to propose an execution for approval, never autonomous consequential action. _(Missing; permission names are types only.)_
+- **FR-AI-12** — Voice, multilingual, mobile, and permitted calendar/email integrations are planned capabilities, designed permission-scoped from the start. _(Missing.)_
+- **FR-AI-13** — The assistant never claims compliance without verified sources; every answer carries citations or states evidence is insufficient; all tool actions and evidence are logged. _(Missing; designed.)_
+- **FR-AI-14** — Rollout order (directive §8, P1): permission-aware, citation-grounded **read-only first**, then gated action tools. The evaluation set (hallucination, tool misuse, extraction accuracy) must pass before the assistant is shown to any customer. _(Missing.)_
+
+## 8. User stories and acceptance criteria (directive §9 deliverable (a))
+
+The backlog (`docs/product/MODULE_BACKLOG.md`) carries the user story per item with acceptance criteria, dependencies, effort, and risk; the roadmap (`docs/product/ROADMAP.md`) carries the milestones. The acceptance criteria that decide whether any story is "done" are the same for every module: real persistent data, access controls, working UI/API, documented behaviour, automated tests, and demonstrated end-to-end use (directive §10). A page, mockup, stub, or passing unit test alone is not a commercially complete feature. **No 30-day promise:** the platform is built incrementally toward the complete vision; dates are not committed and phases are sequenced, not scheduled.
+
 ## 5. Non-functional requirements
 
 - **NFR-01** — Tenant isolation: no tenant can read or write another tenant's data through any surface (API, AI retrieval, export, search). Automated tests prove it per release.
@@ -125,6 +185,7 @@ QualiOS AI is a **commercial, multi-tenant, global AI-powered quality-assurance 
 - Automatic batch release, automatic filing, or any autonomous regulated action.
 - Claims of certification or "fully compliant" status.
 - Building on projections or unaudited figures as if they were verified — the same honesty rule applies to product claims as to financials.
+- **Deferred scope** (explicit, not forgotten): autonomous batch release; automatic filing; AI training on customer data by default; enterprise SSO before Phase 6; human-auditor marketplace before audits/CAPA exist; additional industry packs beyond cannabis until the pack mechanism (B-110/B-601) exists. Full deferred list with reasons: `docs/product/MODULE_BACKLOG.md` ("Explicitly deferred scope").
 
 ## 7. First-milestone acceptance criteria (blueprint §12)
 
